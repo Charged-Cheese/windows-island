@@ -253,6 +253,8 @@ public partial class MainWindow : Window
     /// <summary>
     /// 设置面板的动画风格：换算成刚度 / 阻尼乘数，同时作用于岛体尺寸弹簧与切页弹簧。
     /// smooth 更接近临界阻尼（不回弹），bouncy 更容易 overshoot，snappy 更快。
+    /// 切页弹簧的基础值取接近临界（300/33，稳定时间约 240ms），
+    /// 保证滚轮翻页是柔和的滑动而不是来回弹。
     /// </summary>
     private void ApplyMotionStyle()
     {
@@ -261,10 +263,10 @@ public partial class MainWindow : Window
 
         (_tabStiffness, _tabDamping) = style switch
         {
-            "smooth" => (215.0, 15.2),
-            "bouncy" => (236.5, 7.7),
-            "snappy" => (322.5, 14.1),
-            _ => (215.0, 11.0)
+            "smooth" => (300.0, 45.5),
+            "bouncy" => (330.0, 23.1),
+            "snappy" => (450.0, 41.3),
+            _ => (300.0, 33.0)
         };
     }
 
@@ -1939,7 +1941,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 把连续的 tab 位置落到画面上：每个页面按"与当前位置的距离"滑动、缩放、淡出；
+    /// 把连续的 tab 位置落到画面上：每个页面按"与当前位置的距离"水平滑动、缩放、淡出；
     /// 分页点同样连续变化，速度快时拉长一点，像被甩出去再弹回来。
     /// </summary>
     private void ApplyTabTransition()
@@ -1963,7 +1965,10 @@ public partial class MainWindow : Window
             }
 
             double scale = 1 - 0.075 * eased;
-            double offsetY = (i - _tabPosition) * 28;
+
+            // 水平滑动：下一页从右边进来、上一页往左边出去，方向与滚轮一致。
+            // 位移只作用在页面自己的 RenderTransform 上，不参与布局，不会挤压内容。
+            double offsetX = (i - _tabPosition) * 36;
 
             FrameworkElement page = _tabPages[i];
             page.Opacity = opacity;
@@ -1976,7 +1981,8 @@ public partial class MainWindow : Window
             {
                 scaleTransform.ScaleX = scale;
                 scaleTransform.ScaleY = scale;
-                translate.Y = offsetY;
+                translate.X = offsetX;
+                translate.Y = 0;
             }
         }
 
