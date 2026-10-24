@@ -34,7 +34,7 @@ public static class ThemeManager
     {
         new IslandTheme(
             "obsidian", "曜石",
-            Background: Color.FromArgb(0xF2, 0x0A, 0x0B, 0x10),
+            Background: Color.FromArgb(0xE8, 0x0A, 0x0B, 0x10),
             Border: Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF),
             Primary: Color.FromRgb(0xFF, 0xFF, 0xFF),
             Secondary: Color.FromRgb(0xA7, 0xA9, 0xB8),
@@ -49,7 +49,7 @@ public static class ThemeManager
 
         new IslandTheme(
             "graphite", "石墨",
-            Background: Color.FromArgb(0xF3, 0x15, 0x16, 0x1A),
+            Background: Color.FromArgb(0xE9, 0x15, 0x16, 0x1A),
             Border: Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF),
             Primary: Color.FromRgb(0xF4, 0xF5, 0xF7),
             Secondary: Color.FromRgb(0xA3, 0xA6, 0xB0),
@@ -64,7 +64,7 @@ public static class ThemeManager
 
         new IslandTheme(
             "porcelain", "瓷白",
-            Background: Color.FromArgb(0xFF, 0xF7, 0xF8, 0xFA),
+            Background: Color.FromArgb(0xF5, 0xF7, 0xF8, 0xFA),
             Border: Color.FromArgb(0x22, 0x00, 0x00, 0x00),
             Primary: Color.FromRgb(0x17, 0x1A, 0x21),
             Secondary: Color.FromRgb(0x5A, 0x61, 0x70),

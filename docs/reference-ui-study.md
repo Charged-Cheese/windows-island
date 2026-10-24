@@ -394,5 +394,32 @@ tab 轮播 250/31，位移 34px、缩放 0.965、`alpha=(1-eased)^1.4`；歌词�
 （TabSizes、媒体头显隐、跨页落位、日历事件）、`ViewModels/CalendarCell.cs`、
 `ViewModels/IslandViewModel.cs`（月份偏移/选中/命令）、`README.md`。
 
+## 12. 日历模块重设计：左右分栏 + 日期详情 + 磨砂质感（2026-10-24 晚）
+
+32. **面板重排为左右分栏（452×356）**：左 266px 月历（标题 + 上/下月 + 七列网格）+
+    1px 低透明度分割线 + 右 120px 日期详情。原来单栏把"选中日期 / 农历 / 空状态 / 回到今天"
+    堆在月历下方，信息没有落点；现在右栏从上到下是「选中日期（17px）→ 星期 → 农历 → 空状态 → 回到今天」。
+33. **农历**：新增 `Infrastructure/LunarCalendar.cs`，用 .NET 内置 `ChineseLunisolarCalendar`
+    （纯算法表，1901–2100），处理闰月（`GetLeapMonth`）与月名/日名，越界返回空串让界面自动隐藏。
+    实测 2026-10-14 → 九月初五、2026-10-24 → 九月十五，与万年历一致。
+34. **磨砂质感（降级方案）**：WPF `AllowsTransparency=true` 的窗口带 `WS_EX_LAYERED`，
+    DWM Acrylic/Mica 对它不生效，拿不到真正的系统背景模糊。改为在岛体最底层叠三层：
+    半透明底色（主题 alpha 降到 91%）+ 顶部柔光到下部暗角的自上而下渐变 + 1px 顶部高光 +
+    3×3 噪点平铺（`FrostNoiseBrush`，总不透明度约 8%）。文字对比度不受影响。
+35. **入口**：折叠胶囊右侧加日历图标；展开态媒体条右端也加一个（悬停展开会抢在点击前，
+    只靠折叠图标点不到，所以两处都放）；右键菜单保留「日历」。
+36. **悬停防误触**：`Island_MouseEnter` 改为延迟 150ms 再展开（`_expandTimer`）：
+    鼠标划过不再频繁弹开，也给"点胶囊上的日历图标"留出命中时间。
+37. **翻月过渡**：`AnimateCalendarGrid` —— 网格做 170ms 淡入 + 4px 归位；跨页落位淡入 140 → 180ms。
+
+**验证**：日历展开/收起、选中 14 号（右侧变 10月14日/星期三/农历九月初五）、翻到 9 月、
+回到今天、胶囊图标直达日历、展开态媒体条按钮直达日历、切回媒体页音乐继续播放（进度未回退）。
+农历与 [万年历](https://www.70thvictory.com.tw/nongli/2026-10-24-2747.htm) 交叉核对一致。
+
+改动文件：`Infrastructure/LunarCalendar.cs`（新增）、`MainWindow.xaml`（日历页 + 玻璃层 + 入口）、
+`MainWindow.xaml.cs`（尺寸 452×356、日历事件、翻月动画、展开延迟）、
+`ViewModels/IslandViewModel.cs`（选中日期详情属性）、`Infrastructure/ThemeManager.cs`（背景 alpha）、`README.md`。
+
+
 
 

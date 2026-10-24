@@ -15,6 +15,23 @@
         SnapsToDevicePixels="True"
         Loaded="Window_Loaded">
 
+    <Window.Resources>
+        <!-- 磨砂颗粒：3×3 平铺的细噪点，叠在玻璃层上，透明度极低 -->
+        <DrawingBrush x:Key="FrostNoiseBrush" TileMode="Tile" Viewport="0,0,3,3"
+                      ViewportUnits="Absolute" Stretch="None">
+            <DrawingBrush.Drawing>
+                <GeometryDrawing Brush="#3AFFFFFF">
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <RectangleGeometry Rect="0,0,1,1" />
+                            <RectangleGeometry Rect="2,2,1,1" />
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+    </Window.Resources>
+
     <Grid x:Name="RootGrid" Background="Transparent">
 
         <Border x:Name="Island"
@@ -44,6 +61,28 @@
             </Border.RenderTransform>
 
             <Grid ClipToBounds="True">
+
+                <!-- ===== 磨砂玻璃层（降级实现）=====
+                     WPF 的 AllowsTransparency 窗口会带上 WS_EX_LAYERED，DWM 的 Acrylic/Mica
+                     对它不生效，拿不到真实的系统背景模糊。这里用「半透明底色 + 顶部柔光渐变 +
+                     1px 边缘高光 + 细噪点」模拟磨砂质感，文字对比度不受影响。 -->
+                <Border IsHitTestVisible="False"
+                        CornerRadius="{Binding CornerRadius, ElementName=Island}">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#18FFFFFF" Offset="0" />
+                            <GradientStop Color="#00FFFFFF" Offset="0.32" />
+                            <GradientStop Color="#00000000" Offset="0.66" />
+                            <GradientStop Color="#26000000" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+                <Border IsHitTestVisible="False"
+                        CornerRadius="{Binding CornerRadius, ElementName=Island}"
+                        BorderBrush="#20FFFFFF" BorderThickness="0,1,0,0" />
+                <Border IsHitTestVisible="False"
+                        CornerRadius="{Binding CornerRadius, ElementName=Island}"
+                        Background="{StaticResource FrostNoiseBrush}" Opacity="0.35" />
 
                 <!-- ==================== 折叠态 ==================== -->
                 <Grid x:Name="CollapsedContent" Margin="0">
@@ -105,6 +144,15 @@
                                        FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"
                                        VerticalAlignment="Center"
                                        Visibility="{Binding ShowClockInPill, Converter={StaticResource BoolToVis}}" />
+
+                            <!-- 日历入口：点击直接展开日历面板 -->
+                            <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                    Cursor="Hand" ToolTip="日历" Margin="3,0,0,0"
+                                    MouseLeftButtonUp="PillCalendar_Click">
+                                <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="9.5"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
                         </StackPanel>
                     </Grid>
 
@@ -123,7 +171,8 @@
                                        FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
                             <TextBlock Text="{Binding DateText}" FontFamily="{StaticResource UiFont}" FontSize="11.5"
                                        Foreground="{DynamicResource SecondaryTextBrush}" Margin="8,0,0,0"
-                                       VerticalAlignment="Center" />
+                                       VerticalAlignment="Center" Cursor="Hand" ToolTip="打开日历"
+                                       MouseLeftButtonUp="PillCalendar_Click" />
                         </StackPanel>
 
                         <TextBlock Grid.Column="2" FontFamily="{StaticResource UiFont}" FontSize="12"
@@ -211,6 +260,13 @@
                                         Margin="7,0,0,0" ToolTip="静音 / 取消静音" MouseLeftButtonUp="MuteButton_Click">
                                     <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="10"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <!-- 展开态的日历入口：悬停展开后点这里直接进日历 -->
+                                <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource ControlBrush}" Cursor="Hand"
+                                        Margin="5,0,0,0" ToolTip="日历" MouseLeftButtonUp="PillCalendar_Click">
+                                    <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="9"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                             </StackPanel>
@@ -827,6 +883,7 @@
                                 </Grid>
 
                                 <!-- 日历页：独立占满整个面板（不再和媒体条抢高度） -->
+                                <!-- 日历页：左侧月历 + 右侧日期详情（媒体条在此页隐藏） -->
                                 <Grid x:Name="CalendarPage" RenderTransformOrigin="0.5,0.5">
                                     <Grid.RenderTransform>
                                         <TransformGroup>
@@ -834,114 +891,156 @@
                                             <TranslateTransform />
                                         </TransformGroup>
                                     </Grid.RenderTransform>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="120" />
+                                    </Grid.ColumnDefinitions>
 
-                                    <!-- 月份 / 选中日期 / 翻月与回到今天 -->
-                                    <Grid Grid.Row="0" Margin="0,0,0,10">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- ===== 左：月历 ===== -->
+                                    <Grid Grid.Column="0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- 月份 + 上/下月：标题与按钮垂直居中对齐，不互相挤压 -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,8">
                                             <TextBlock Text="{Binding CalendarTitle}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="16" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource PrimaryTextBrush}" />
-                                            <TextBlock Text="{Binding CalendarSelectedText}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="10.5" Margin="10,3,0,0"
-                                                       Foreground="{DynamicResource TertiaryTextBrush}"
+                                                       FontSize="15.5" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}"
                                                        VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                                                    VerticalAlignment="Center">
-                                            <Border Width="24" Height="24" CornerRadius="12" Cursor="Hand"
-                                                    Background="{DynamicResource ControlBrush}" ToolTip="上个月"
-                                                    MouseLeftButtonUp="CalendarPrev_Click">
-                                                <TextBlock Text="&#xE76B;" FontFamily="{StaticResource IconFont}" FontSize="9"
-                                                           Foreground="{DynamicResource PrimaryTextBrush}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
-                                            <Border Width="24" Height="24" CornerRadius="12" Cursor="Hand" Margin="5,0,0,0"
-                                                    Background="{DynamicResource ControlBrush}" ToolTip="下个月"
-                                                    MouseLeftButtonUp="CalendarNext_Click">
-                                                <TextBlock Text="&#xE76C;" FontFamily="{StaticResource IconFont}" FontSize="9"
-                                                           Foreground="{DynamicResource PrimaryTextBrush}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
-                                            <Border Height="24" CornerRadius="12" Cursor="Hand" Margin="5,0,0,0" Padding="10,0"
-                                                    Background="{DynamicResource ControlBrush}" ToolTip="回到今天"
-                                                    MouseLeftButtonUp="CalendarToday_Click">
-                                                <TextBlock Text="今天" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                                           Foreground="{DynamicResource AccentBrush}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
-                                        </StackPanel>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                                        VerticalAlignment="Center">
+                                                <Border Width="22" Height="22" CornerRadius="11" Cursor="Hand"
+                                                        Background="{DynamicResource ControlBrush}" ToolTip="上个月"
+                                                        MouseLeftButtonUp="CalendarPrev_Click">
+                                                    <TextBlock Text="&#xE76B;" FontFamily="{StaticResource IconFont}" FontSize="8"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <Border Width="22" Height="22" CornerRadius="11" Cursor="Hand" Margin="5,0,0,0"
+                                                        Background="{DynamicResource ControlBrush}" ToolTip="下个月"
+                                                        MouseLeftButtonUp="CalendarNext_Click">
+                                                    <TextBlock Text="&#xE76C;" FontFamily="{StaticResource IconFont}" FontSize="8"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- 星期标题：与日期网格同列宽 -->
+                                        <UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,2">
+                                            <TextBlock Text="一" FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                       Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
+                                            <TextBlock Text="二" FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                       Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
+                                            <TextBlock Text="三" FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                       Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
+                                            <TextBlock Text="四" FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                       Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
+                                            <TextBlock Text="五" FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                       Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
+                                            <TextBlock Text="六" FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                       Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
+                                            <TextBlock Text="日" FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                       Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
+                                        </UniformGrid>
+
+                                        <!-- 6×7 日期网格：等宽等高，数字居中 -->
+                                        <ItemsControl x:Name="CalendarGrid" Grid.Row="2" ItemsSource="{Binding CalendarDays}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="7" Rows="6" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border x:Name="DayCell" Margin="1.5" CornerRadius="9" Background="Transparent"
+                                                            Cursor="Hand" Tag="{Binding}" MouseLeftButtonUp="CalendarDay_Click">
+                                                        <Grid>
+                                                            <Border x:Name="TodayFill" Width="30" Height="30" CornerRadius="15"
+                                                                    Background="{DynamicResource AccentBrush}" Visibility="Collapsed" />
+                                                            <Border x:Name="SelectedRing" Width="30" Height="30" CornerRadius="15"
+                                                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.4"
+                                                                    Visibility="Collapsed" />
+                                                            <TextBlock x:Name="DayText" Text="{Binding Day}"
+                                                                       FontFamily="{StaticResource UiFont}" FontSize="12"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                                                        </Grid>
+                                                    </Border>
+                                                    <DataTemplate.Triggers>
+                                                        <Trigger SourceName="DayCell" Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="DayCell" Property="Background"
+                                                                    Value="{DynamicResource ControlBrush}" />
+                                                        </Trigger>
+                                                        <DataTrigger Binding="{Binding IsCurrentMonth}" Value="False">
+                                                            <Setter TargetName="DayText" Property="Opacity" Value="0.32" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter TargetName="SelectedRing" Property="Visibility" Value="Visible" />
+                                                            <Setter TargetName="DayText" Property="Foreground"
+                                                                    Value="{DynamicResource AccentBrush}" />
+                                                            <Setter TargetName="DayText" Property="FontWeight" Value="SemiBold" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                                            <Setter TargetName="TodayFill" Property="Visibility" Value="Visible" />
+                                                            <Setter TargetName="SelectedRing" Property="Visibility" Value="Collapsed" />
+                                                            <Setter TargetName="DayText" Property="Foreground" Value="#FF0B0B10" />
+                                                            <Setter TargetName="DayText" Property="FontWeight" Value="SemiBold" />
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </Grid>
 
-                                    <!-- 星期行：与日期网格同列宽 -->
-                                    <UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,2">
-                                        <TextBlock Text="一" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                                   Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                        <TextBlock Text="二" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                                   Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                        <TextBlock Text="三" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                                   Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                        <TextBlock Text="四" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                                   Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                        <TextBlock Text="五" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                                   Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                        <TextBlock Text="六" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                                   Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                        <TextBlock Text="日" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                                   Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                    </UniformGrid>
+                                    <!-- 低透明度细分割线 -->
+                                    <Border Grid.Column="1" Width="1" Background="{DynamicResource DividerBrush}"
+                                            Opacity="0.55" Margin="11,4,0,4" />
 
-                                    <!-- 6×7 日期网格：格子等宽等高 -->
-                                    <ItemsControl Grid.Row="2" ItemsSource="{Binding CalendarDays}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <UniformGrid Columns="7" Rows="6" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border x:Name="DayCell" Margin="2" CornerRadius="10" Background="Transparent"
-                                                        Cursor="Hand" Tag="{Binding}" MouseLeftButtonUp="CalendarDay_Click">
-                                                    <Grid>
-                                                        <Border x:Name="TodayFill" Width="30" Height="30" CornerRadius="15"
-                                                                Background="{DynamicResource AccentBrush}" Visibility="Collapsed" />
-                                                        <Border x:Name="SelectedRing" Width="30" Height="30" CornerRadius="15"
-                                                                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5"
-                                                                Visibility="Collapsed" />
-                                                        <TextBlock x:Name="DayText" Text="{Binding Day}"
-                                                                   FontFamily="{StaticResource UiFont}" FontSize="13"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
-                                                    </Grid>
-                                                </Border>
-                                                <DataTemplate.Triggers>
-                                                    <Trigger SourceName="DayCell" Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="DayCell" Property="Background"
-                                                                Value="{DynamicResource ControlBrush}" />
-                                                    </Trigger>
-                                                    <DataTrigger Binding="{Binding IsCurrentMonth}" Value="False">
-                                                        <Setter TargetName="DayText" Property="Opacity" Value="0.35" />
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                        <Setter TargetName="SelectedRing" Property="Visibility" Value="Visible" />
-                                                        <Setter TargetName="DayText" Property="Foreground"
-                                                                Value="{DynamicResource AccentBrush}" />
-                                                        <Setter TargetName="DayText" Property="FontWeight" Value="SemiBold" />
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding IsToday}" Value="True">
-                                                        <Setter TargetName="TodayFill" Property="Visibility" Value="Visible" />
-                                                        <Setter TargetName="SelectedRing" Property="Visibility" Value="Collapsed" />
-                                                        <Setter TargetName="DayText" Property="Foreground" Value="#FF0B0B10" />
-                                                        <Setter TargetName="DayText" Property="FontWeight" Value="SemiBold" />
-                                                    </DataTrigger>
-                                                </DataTemplate.Triggers>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <!-- ===== 右：日期详情 ===== -->
+                                    <Grid Grid.Column="2" Margin="11,0,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0">
+                                            <TextBlock Text="{Binding CalendarSelectedDate}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="17" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                                            <TextBlock Text="{Binding CalendarSelectedWeekday}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="11.5" Foreground="{DynamicResource SecondaryTextBrush}"
+                                                       Margin="0,3,0,0" />
+                                            <TextBlock Text="{Binding CalendarSelectedLunar}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="10.5" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                       Margin="0,2,0,0"
+                                                       Visibility="{Binding HasCalendarLunar, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+
+                                        <!-- 空状态：小型线性日历图标 + 一句提示 -->
+                                        <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="22"
+                                                       Foreground="{DynamicResource TertiaryTextBrush}" Opacity="0.45"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Text="{Binding CalendarScheduleHint}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="10.5" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                       HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                       TextAlignment="Center" />
+                                        </StackPanel>
+
+                                        <!-- 低存在感的回到今天 -->
+                                        <Border Grid.Row="2" CornerRadius="8" Padding="8,4" Cursor="Hand"
+                                                Background="Transparent" HorizontalAlignment="Left"
+                                                MouseLeftButtonUp="CalendarToday_Click">
+                                            <TextBlock Text="回到今天" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                    </Grid>
                                 </Grid>
                             </Grid>
                         </Border>

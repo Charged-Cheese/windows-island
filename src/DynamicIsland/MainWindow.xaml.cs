@@ -112,7 +112,7 @@ public partial class MainWindow : Window
         (ExpandedWidth, 220),             // 4 通知
         (ExpandedWidth, 196),             // 5 歌词
         (ExpandedWidth, 220),             // 6 剪贴板
-        (396, 384)                        // 7 日历
+        (452, 356)                        // 7 日历：左侧月历 + 右侧详情
     };
 
     /// <summary>音乐 / 歌词页才在顶部显示媒体条；其它功能页整块让给内容。</summary>
@@ -127,6 +127,7 @@ public partial class MainWindow : Window
     private readonly IslandViewModel _viewModel = new();
     private readonly DispatcherTimer _notificationTimer;
     private readonly DispatcherTimer _autoCollapseTimer;
+    private readonly DispatcherTimer _expandTimer;
     private readonly DispatcherTimer _volumeHudTimer;
     private readonly DispatcherTimer _spectrumTimer;
     private readonly Border[] _spectrumBars;
@@ -191,6 +192,13 @@ public partial class MainWindow : Window
             }
 
             RecomputeState();
+        };
+
+        _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _expandTimer.Tick += (_, _) =>
+        {
+            _expandTimer.Stop();
+            ExpandFromCollapsed();
         };
 
         _volumeHudTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1100) };
@@ -1009,6 +1017,15 @@ public partial class MainWindow : Window
 
     // ---------------- 日历 ----------------
 
+    /// <summary>胶囊上的日历入口：切到日历页并展开（不经过悬停判定）。</summary>
+    private void PillCalendar_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        _expandTimer.Stop();
+        _viewModel.ActiveTab = 7;
+        SetState(IslandState.Expanded);
+    }
+
     /// <summary>右键菜单里的日历入口：直接切到日历页并保持展开。</summary>
     private void MenuCalendar_Click(object sender, MouseButtonEventArgs e)
     {
@@ -1018,22 +1035,49 @@ public partial class MainWindow : Window
         SetState(IslandState.Expanded);
     }
 
+    /// <summary>月份切换的轻微淡入 + 4px 归位，避免日期网格硬切。</summary>
+    private void AnimateCalendarGrid()
+    {
+        if (CalendarGrid is null)
+        {
+            return;
+        }
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(170);
+
+        CalendarGrid.BeginAnimation(OpacityProperty, null);
+        CalendarGrid.Opacity = 0.25;
+        CalendarGrid.BeginAnimation(
+            OpacityProperty,
+            new DoubleAnimation(1, duration) { EasingFunction = ease });
+
+        var shift = CalendarGrid.RenderTransform as TranslateTransform ?? new TranslateTransform();
+        CalendarGrid.RenderTransform = shift;
+        shift.BeginAnimation(
+            TranslateTransform.YProperty,
+            new DoubleAnimation(4, 0, duration) { EasingFunction = ease });
+    }
+
     private void CalendarPrev_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
         _viewModel.PreviousMonthCommand.Execute(null);
+        AnimateCalendarGrid();
     }
 
     private void CalendarNext_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
         _viewModel.NextMonthCommand.Execute(null);
+        AnimateCalendarGrid();
     }
 
     private void CalendarToday_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
         _viewModel.CalendarTodayCommand.Execute(null);
+        AnimateCalendarGrid();
     }
 
     private void CalendarDay_Click(object sender, MouseButtonEventArgs e)
@@ -1106,9 +1150,25 @@ public partial class MainWindow : Window
             return;
         }
 
+        // 悬停后延迟 150ms 再展开：
+        // 1) 鼠标只是划过时不再频繁弹开；
+        // 2) 给「点击胶囊上的日历图标」留出命中时间——否则悬停立即展开后，
+        //    折叠层被展开层盖住，点下去只会落到媒体页上。
+        _expandTimer.Stop();
+        _expandTimer.Start();
+    }
+
+    /// <summary>延迟展开：鼠标已进入且仍处于折叠态时才执行。</summary>
+    private void ExpandFromCollapsed()
+    {
+        if (!_hovered || _state != IslandState.Collapsed)
+        {
+            return;
+        }
+
         // 岛正在收起的过程中又移回来：直接反向目标、保留当前速度。
         // 这种情况下绝不能再 Kick，否则速度会被强行改成正向，产生顿挫/过冲。
-        // 判定要用「当前页面」的展开高度：日历页是 384，媒体页是 184。
+        // 判定要用「当前页面」的展开高度：日历页是 356，媒体页是 184。
         bool shrinking = _spring.Height < SizeForTab(_viewModel.ActiveTab).Height - 1
                          || _spring.HeightVelocity < -5;
 
@@ -1128,6 +1188,7 @@ public partial class MainWindow : Window
     private void Island_MouseLeave(object sender, MouseEventArgs e)
     {
         _hovered = false;
+        _expandTimer.Stop();
 
         if (_notificationTimer.IsEnabled ||
             ContextMenuPanel.Visibility == Visibility.Visible ||
@@ -1782,7 +1843,7 @@ public partial class MainWindow : Window
 
             // 直接落位没有"滑入"，补一次短淡入，避免内容硬切
             FrameworkElement page = _tabPages[(int)target];
-            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140))
+            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             };

@@ -654,6 +654,30 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public string CalendarSelectedText
         => _selectedDate.ToString("M月d日 dddd", new System.Globalization.CultureInfo("zh-CN"));
 
+    /// <summary>右侧详情：选中日期（如 "10月24日"）。</summary>
+    public string CalendarSelectedDate
+        => _selectedDate.ToString("M月d日", new System.Globalization.CultureInfo("zh-CN"));
+
+    /// <summary>右侧详情：星期（如 "星期六"）。</summary>
+    public string CalendarSelectedWeekday
+        => _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("zh-CN"));
+
+    /// <summary>右侧详情：农历（越界或不可靠时为空，界面自动隐藏）。</summary>
+    public string CalendarSelectedLunar
+    {
+        get
+        {
+            string lunar = Infrastructure.LunarCalendar.Describe(_selectedDate);
+            return string.IsNullOrEmpty(lunar) ? string.Empty : "农历" + lunar;
+        }
+    }
+
+    public bool HasCalendarLunar => CalendarSelectedLunar.Length > 0;
+
+    /// <summary>右侧空状态文案：今天 / 其它日期分开说。</summary>
+    public string CalendarScheduleHint
+        => _selectedDate.Date == DateTime.Today ? "今天暂无日程" : "当日暂无日程";
+
     public string CalendarWeekdays => "一 二 三 四 五 六 日";
 
     // ---------------- 图标坞 ----------------
@@ -1701,8 +1725,19 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
 
         CalendarTitle = $"{first:yyyy年M月}";
-        OnPropertyChanged(nameof(CalendarSelectedText));
+        NotifyCalendarSelection();
         _lastCalendarDate = today;
+    }
+
+    /// <summary>选中日期变化时，右侧详情用到的几个计算属性一起刷新。</summary>
+    private void NotifyCalendarSelection()
+    {
+        OnPropertyChanged(nameof(CalendarSelectedText));
+        OnPropertyChanged(nameof(CalendarSelectedDate));
+        OnPropertyChanged(nameof(CalendarSelectedWeekday));
+        OnPropertyChanged(nameof(CalendarSelectedLunar));
+        OnPropertyChanged(nameof(HasCalendarLunar));
+        OnPropertyChanged(nameof(CalendarScheduleHint));
     }
 
     private void ShiftCalendarMonth(int delta)
@@ -1740,7 +1775,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             item.IsSelected = item.Date == _selectedDate;
         }
 
-        OnPropertyChanged(nameof(CalendarSelectedText));
+        NotifyCalendarSelection();
     }
 
     // ---------------- 通知 ----------------
