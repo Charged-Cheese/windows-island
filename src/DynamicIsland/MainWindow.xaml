@@ -32,13 +32,14 @@
         </DrawingBrush>
     </Window.Resources>
 
-    <Grid x:Name="RootGrid" Background="Transparent">
+    <Grid x:Name="RootGrid" Background="Transparent" MouseEnter="RootGrid_MouseEnter">
 
         <Border x:Name="Island"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Top"
                 Width="204" Height="36"
                 CornerRadius="18"
+                Margin="0,-2,0,0"
                 Background="{DynamicResource IslandBgBrush}"
                 BorderBrush="{DynamicResource IslandBorderBrush}"
                 BorderThickness="1"

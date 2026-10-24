@@ -415,7 +415,9 @@ public partial class MainWindow : Window
     // ---------------- 穿透 ----------------
 
     private const double HitPadX = 18;
-    private const double HitPadTop = 4;
+    // 顶部补边要大一些：贴顶窗口的内容实际从物理 y≈2 开始渲染，
+    // 留 8 逻辑像素余量保证「屏幕最顶上那一两像素」也在命中区内，鼠标放进去就能展开。
+    private const double HitPadTop = 8;
     private const double HitPadBottom = 14;
 
     private void UpdateIslandHitRect() => UpdateIslandHitRectFor(Island.Width, Island.Height);
@@ -1151,6 +1153,22 @@ public partial class MainWindow : Window
 
         // 立即展开（不做悬停延迟）
         ExpandFromCollapsed();
+    }
+
+    /// <summary>
+    /// 窗口级兜底：命中区比岛体本身大（左右 18、顶部 8、底部 14 逻辑像素），
+    /// 鼠标停在「屏幕最顶那一两像素」时可能还没进入 Island 元素，
+    /// 这里让窗口范围内的进入事件也触发展开，避免贴顶缝隙处"鼠标进去了但岛不动"。
+    /// </summary>
+    private void RootGrid_MouseEnter(object sender, MouseEventArgs e)
+    {
+        _autoCollapseTimer.Stop();
+        _hovered = true;
+
+        if (_state == IslandState.Collapsed)
+        {
+            ExpandFromCollapsed();
+        }
     }
 
     /// <summary>延迟展开：鼠标已进入且仍处于折叠态时才执行。</summary>
