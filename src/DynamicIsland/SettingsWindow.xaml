@@ -210,6 +210,61 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- 动画 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="动画" />
+                    <Border Style="{StaticResource Card}" Padding="6">
+                        <StackPanel>
+                            <Border Style="{StaticResource RowBorder}" Tag="default" MouseLeftButtonUp="Motion_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="◎" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="标准" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="当前手感 · 展开轻微回弹" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="MotionCheckDefault" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="smooth" MouseLeftButtonUp="Motion_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="≈" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="顺滑" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="临界阻尼 · 不回弹" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="MotionCheckSmooth" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="bouncy" MouseLeftButtonUp="Motion_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="◉" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="弹跳" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="明显 overshoot · 更 Q" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="MotionCheckBouncy" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="snappy" MouseLeftButtonUp="Motion_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⚡" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="干脆" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="收放更快 · 尾部干净" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="MotionCheckSnappy" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
                     <!-- 天气 -->
                     <TextBlock Style="{StaticResource SectionTitle}" Text="天气与位置" />
                     <Border Style="{StaticResource Card}" Padding="10,10,6,4">

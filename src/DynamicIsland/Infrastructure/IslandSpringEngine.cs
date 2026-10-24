@@ -56,6 +56,28 @@ internal sealed class IslandSpringEngine : IDisposable
 
     public bool IsSettled => _width.IsSettled && _height.IsSettled && _radius.IsSettled && _nudge.IsSettled;
 
+    /// <summary>
+    /// 动画风格预设（Smooth / Bouncy / Snappy）对刚度与阻尼的乘数。
+    /// 参考上游 1.4.0 的四档预设：smooth 提高阻尼做临界阻尼，bouncy 降低阻尼要回弹，
+    /// snappy 同时提高刚度与阻尼，动作更快但不拖尾。
+    /// </summary>
+    public void ApplyStyle(string? id)
+    {
+        (StiffnessScale, DampingScale) = id switch
+        {
+            "smooth" => (1.00, 1.38),   // 顺滑：接近临界阻尼，几乎不回弹
+            "bouncy" => (1.10, 0.70),   // 弹跳：明显 overshoot
+            "snappy" => (1.50, 1.28),   // 干脆：收得快，尾部干净
+            _ => (1.00, 1.00)           // 标准：当前手感
+        };
+    }
+
+    /// <summary>全局刚度乘数（由动画风格预设设置）。</summary>
+    public double StiffnessScale { get; private set; } = 1.0;
+
+    /// <summary>全局阻尼乘数（由动画风格预设设置）。</summary>
+    public double DampingScale { get; private set; } = 1.0;
+
     /// <summary>设置目标尺寸。repeat 为 true 表示回到同一形态时稍微"弹"一下。</summary>
     public void SetTarget(double width, double height, double radius)
     {
@@ -65,12 +87,14 @@ internal sealed class IslandSpringEngine : IDisposable
         // 快速收起途中立刻移回时，当前值可能还停在展开尺寸，
         // 但旧目标已经是折叠尺寸，这时应该按扩张参数来算。
         bool expanding = width > _width.Target + 0.5 || height > _height.Target + 0.5;
-        _width.Stiffness = expanding ? 355 : 300;
-        _width.Damping = expanding ? 21 : 29;
+        _width.Stiffness = (expanding ? 355 : 300) * StiffnessScale;
+        _width.Damping = (expanding ? 21 : 29) * DampingScale;
         _height.Stiffness = _width.Stiffness;
         _height.Damping = _width.Damping;
         _radius.Stiffness = _width.Stiffness;
         _radius.Damping = _width.Damping;
+        _nudge.Stiffness = 260 * StiffnessScale;
+        _nudge.Damping = 22 * DampingScale;
 
         _width.Target = width;
         _height.Target = height;

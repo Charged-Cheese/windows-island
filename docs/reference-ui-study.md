@@ -311,3 +311,44 @@ tab 轮播 250/31，位移 34px、缩放 0.965、`alpha=(1-eased)^1.4`；歌词�
 `ViewModels/ClipboardEntryViewModel.cs`、`ViewModels/CalendarCell.cs`（新增）、
 `ViewModels/IslandViewModel.cs`、`Core/Services/SettingsService.cs`、`MainWindow.xaml/.cs`、
 `SettingsWindow.xaml/.cs`、`README.md`。
+
+## 9. 第四批落地记录（2026-10-24 晚，视觉打磨：morph / 取色 / 光带 / 动画预设）
+
+对应第 4 节优先级清单里的第三批（#4 封面 morph、#6 封面取色、#8 动画预设、#11 karaoke 光带）。
+
+27. **封面 morph**：折叠 24 圆 ↔ 展开 46 圆角方形。折叠/展开两套内容里的封面改为
+    `Opacity=0` 的**布局占位**（只保留 24/46 的空间，标题不会被拉走），
+    真正的封面由岛体顶层新增的 `MorphCover` 绘制；`OnSpringUpdated` 按
+    `progress = (height - 36) / (184 - 36)` 线性插值尺寸（24→46）与位置（7,6 → 12,11），
+    **圆角固定 12**——尺寸连续变大时形状自然从圆过渡到圆角方形，不需要单独插值圆角。
+    无媒体或通知卡状态下隐藏该层。
+28. **封面取色 → 强调色**：`AccentSampler` 把封面解码成 24px，按鲜艳度加权平均并跳过
+    近黑/近白/灰像素（有效彩色像素不足 10% 视为黑白封面，回退主题色）；
+    结果再按当前主题亮度钳制饱和度（≥0.52）与亮度（深色主题 0.58–0.76、浅色主题 0.36–0.50）。
+    原始采样色单独保存，切主题时重新 `FitToTheme`，避免把深色主题的亮色搬到浅色主题上。
+    强调色通过 `ThemeManager.AnimateAccent` 以 300ms 半衰期指数逼近新色，1.2 秒硬兜底。
+29. **karaoke 光带**：`BuildLyricBrush` 在擦除边界前 4.5% 行宽处加一条提亮 72% 的
+    `GradientStop`，边界后 2.2% 过渡到未唱色；文字上形成一条随进度移动的柔和亮痕。
+30. **动画风格预设**：`SettingsService.AnimationStyle`（default / smooth / bouncy / snappy），
+    `IslandSpringEngine.ApplyStyle` 给出刚度与阻尼乘数（smooth 1.0/1.38、bouncy 1.10/0.70、
+    snappy 1.50/1.28），同时作用于尺寸弹簧与轻弹通道；切页弹簧的 215/11 也按同一组乘数换算。
+    设置面板新增「动画」区块，点击即触发 `ApplySettings` → `SettingsApplied` 事件 →
+    主窗口重算弹簧参数，不必重启。
+
+**踩到的两个坑（已修）**：
+
+- WPF 会把放进 `Application.Resources` 的 Freezable 冻结，直接改共享 `SolidColorBrush.Color`
+  会抛「处于只读状态」并让启动崩溃。改为过渡期间每帧发布一个新的冻结 Brush 替换资源项。
+- 用 `CompositionTarget.Rendering` 驱动 300ms 过渡时，窗口空闲（无动画、无失效）渲染回调会停，
+  过渡卡在半路、`_accentAnimating` 永远为真，**之后所有换歌都不再更新强调色**。
+  改用 `DispatcherTimer`（16ms）驱动，并加 1.2 秒超时强制落位。
+
+**验证方式**（全部实机截图核对）：展开/收起逐帧连拍看 morph 连续无叠影；
+换歌与切主题看日志的「强调色过渡 → / 完成」时间对与颜色值（同一封面石墨下 #5C63CC、瓷白下 #2C328C）；
+构造 6 行同步歌词确认 karaoke 光带边界（亮度 103 → 181）；设置面板切换四档动画并观察
+弹跳档展开时高度 307 → 268 的 overshoot。
+
+改动文件：`Infrastructure/AccentSampler.cs`（新增）、`Infrastructure/ThemeManager.cs`、
+`Infrastructure/IslandSpringEngine.cs`、`ViewModels/IslandViewModel.cs`、
+`Core/Services/SettingsService.cs`、`MainWindow.xaml/.cs`、`SettingsWindow.xaml/.cs`、`README.md`。
+

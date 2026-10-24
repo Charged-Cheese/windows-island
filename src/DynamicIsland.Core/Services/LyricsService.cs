@@ -187,7 +187,7 @@ public sealed class LyricsService
                 }
             }
 
-            LogService.Info($"歌词（{track.Title}）：{LastStatus}");
+            LogService.Info($"歌词（{track.Title}）：{LastStatus} [cache={SafeFileName(key)}]");
             return LyricsDocument.Empty;
         }
 

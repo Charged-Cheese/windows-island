@@ -43,6 +43,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private string _lyricsTrackKey = string.Empty;
     private byte[]? _lastCoverBytes;
     private ImageSource? _coverImage;
+    private Color? _coverAccentRaw;     // 未按主题钳制的采样色
+    private Color? _coverAccent;        // 已按当前主题钳制的强调色
     private bool _disposed;
     private bool _initialized;
     private bool _bluetoothStarted;
@@ -547,6 +549,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     /// <summary>请求把某条记录写回系统剪贴板（实际 Clipboard 操作在窗口层）。</summary>
     public event Action<ClipboardEntry>? ClipboardCopyRequested;
 
+    /// <summary>设置面板改动已生效（窗口层据此重读动画风格等界面参数）。</summary>
+    public event Action? SettingsApplied;
+
     private bool _privacyMicActive;
     public bool PrivacyMicActive
     {
@@ -758,6 +763,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             {
                 HasMedia = false;
                 Cover = null;
+                _coverAccent = null;
+                _coverAccentRaw = null;
+                ThemeManager.AnimateAccent(ThemeManager.Current.Accent);
                 HasLyrics = false;
                 PositionText = "0:00";
                 DurationText = "0:00";
@@ -780,6 +788,13 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             _lastCoverBytes = track.CoverBytes;
             _coverImage = ToImageSource(track.CoverBytes);
             Cover = _coverImage;
+
+            // 强调色跟随封面：换歌时从旧色指数过渡到新色（约 300ms 半衰期）
+            _coverAccentRaw = AccentSampler.SampleAverage(track.CoverBytes);
+            _coverAccent = _coverAccentRaw is { } raw
+                ? AccentSampler.FitToTheme(raw, ThemeManager.Current)
+                : null;
+            ThemeManager.AnimateAccent(_coverAccent ?? ThemeManager.Current.Accent);
         }
 
         if (_isSeeking)
@@ -847,10 +862,13 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         NotifyCollapsedTextChanged();
     }
 
-    /// <summary>当前行渐变：已唱部分用强调色，未唱部分用次要色。</summary>
+    /// <summary>
+    /// 当前行渐变：已唱部分用强调色，未唱部分用次要色；
+    /// 擦除边界再叠一条提亮的柔和光带，做出「唱过去」的扫光痕迹。
+    /// </summary>
     private static Brush BuildLyricBrush(double progress)
     {
-        Color accent = ThemeManager.Current.Accent;
+        Color accent = ThemeManager.CurrentAccent;
         Color secondary = ThemeManager.Current.Secondary;
 
         if (progress <= 0.002)
@@ -867,17 +885,34 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             return done;
         }
 
+        Color glow = MixColor(accent, Colors.White, 0.72);
+        const double band = 0.045;   // 光带宽度：擦除边界往前的一小段
+        const double fade = 0.022;   // 光带之后到未唱色的过渡
+        double left = Math.Max(0, progress - band);
+        double right = Math.Min(1, progress + fade);
+
         var brush = new LinearGradientBrush
         {
             StartPoint = new Point(0, 0.5),
             EndPoint = new Point(1, 0.5)
         };
         brush.GradientStops.Add(new GradientStop(accent, 0));
-        brush.GradientStops.Add(new GradientStop(accent, progress));
-        brush.GradientStops.Add(new GradientStop(secondary, progress + 0.001));
+        brush.GradientStops.Add(new GradientStop(accent, left));
+        brush.GradientStops.Add(new GradientStop(glow, progress));
+        brush.GradientStops.Add(new GradientStop(secondary, right));
         brush.GradientStops.Add(new GradientStop(secondary, 1));
         brush.Freeze();
         return brush;
+    }
+
+    private static Color MixColor(Color from, Color to, double t)
+    {
+        t = Math.Clamp(t, 0, 1);
+        return Color.FromArgb(
+            (byte)Math.Round(from.A + (to.A - from.A) * t),
+            (byte)Math.Round(from.R + (to.R - from.R) * t),
+            (byte)Math.Round(from.G + (to.G - from.G) * t),
+            (byte)Math.Round(from.B + (to.B - from.B) * t));
     }
 
     private async Task LoadLyricsAsync(TrackInfo track)
@@ -1312,6 +1347,19 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowPillClock));
         OnPropertyChanged(nameof(ShowClockInPill));
         NotifyCollapsedTextChanged();
+        SettingsApplied?.Invoke();
+    }
+
+    /// <summary>
+    /// 重新计算强调色目标：有封面用封面采样色（按当前主题重新钳制），否则回到主题强调色。
+    /// 换主题后必须调用一次，否则强调色会停在按上一套主题亮度校正过的颜色上。
+    /// </summary>
+    public void RefreshAccent()
+    {
+        _coverAccent = _coverAccentRaw is { } raw
+            ? AccentSampler.FitToTheme(raw, ThemeManager.Current)
+            : null;
+        ThemeManager.AnimateAccent(_coverAccent ?? ThemeManager.Current.Accent);
     }
 
     private void SelectTab(object? parameter)

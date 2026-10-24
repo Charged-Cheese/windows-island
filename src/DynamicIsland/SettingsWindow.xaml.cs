@@ -52,6 +52,12 @@ public partial class SettingsWindow : Window
         SetToggle(TogglePillLyrics, Settings.ShowLyricsInPill);
         SetToggle(TogglePillClock, Settings.ShowPillClock);
 
+        string motion = Settings.AnimationStyle;
+        SetToggle(MotionCheckDefault, motion is not ("smooth" or "bouncy" or "snappy"));
+        SetToggle(MotionCheckSmooth, motion == "smooth");
+        SetToggle(MotionCheckBouncy, motion == "bouncy");
+        SetToggle(MotionCheckSnappy, motion == "snappy");
+
         LyricOffsetText.Text = $"{(int)Settings.LyricsOffsetMs} ms";
         VolumeStepText.Text = $"{Math.Round(Settings.VolumeStep * 100):0}%";
 
@@ -75,7 +81,24 @@ public partial class SettingsWindow : Window
 
         ThemeManager.Apply(id);
         Settings.Theme = ThemeManager.CurrentId;
+        _viewModel.RefreshAccent();
         _viewModel.SaveSettings();
+        RefreshUI();
+    }
+
+    // ---------------- 动画风格 ----------------
+
+    private void Motion_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not FrameworkElement { Tag: string id })
+        {
+            return;
+        }
+
+        Settings.AnimationStyle = id;
+        // ApplySettings 会触发 SettingsApplied，主窗口据此刷新弹簧参数
+        _viewModel.ApplySettings();
         RefreshUI();
     }
 

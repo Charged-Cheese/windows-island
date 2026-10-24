@@ -128,6 +128,8 @@ public partial class MainWindow : Window
     private double _tabTarget;
     private double _tabLastSeconds;
     private bool _tabAnimating;
+    private double _tabStiffness = 215.0;
+    private double _tabDamping = 11.0;
 
     private IslandState _state = IslandState.Collapsed;
     private IslandState _stateBeforeNotification = IslandState.Collapsed;
@@ -191,6 +193,7 @@ public partial class MainWindow : Window
         _fullscreenTimer.Tick += (_, _) => CheckFullscreen();
 
         _spring.Updated += OnSpringUpdated;
+        ApplyMotionStyle();
 
         _tabPages = new FrameworkElement[]
         {
@@ -215,9 +218,60 @@ public partial class MainWindow : Window
         _viewModel.SystemAlertRequested += OnSystemAlertRequested;
         _viewModel.ClipboardCaptured += OnClipboardCaptured;
         _viewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
+
+        // 设置面板里改动画风格后即时生效
+        _viewModel.SettingsApplied += ApplyMotionStyle;
     }
 
     public IslandViewModel ViewModel => _viewModel;
+
+    /// <summary>
+    /// 设置面板的动画风格：换算成刚度 / 阻尼乘数，同时作用于岛体尺寸弹簧与切页弹簧。
+    /// smooth 更接近临界阻尼（不回弹），bouncy 更容易 overshoot，snappy 更快。
+    /// </summary>
+    private void ApplyMotionStyle()
+    {
+        string style = _viewModel.Settings.AnimationStyle;
+        _spring.ApplyStyle(style);
+
+        (_tabStiffness, _tabDamping) = style switch
+        {
+            "smooth" => (215.0, 15.2),
+            "bouncy" => (236.5, 7.7),
+            "snappy" => (322.5, 14.1),
+            _ => (215.0, 11.0)
+        };
+    }
+
+    /// <summary>
+    /// 封面 morph：跟随岛体高度在「折叠 24 圆」与「展开 46 圆角方形」之间连续插值。
+    /// 圆角固定 12，尺寸连续变大时形状自然从圆形过渡到圆角方形。
+    /// </summary>
+    private void UpdateMorphCover(double height)
+    {
+        if (MorphCover is null)
+        {
+            return;
+        }
+
+        if (_state == IslandState.Notification || !_viewModel.HasMedia || _viewModel.Cover is null)
+        {
+            MorphCover.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        double progress = Math.Clamp(
+            (height - CollapsedHeight) / (ExpandedHeight - CollapsedHeight), 0, 1);
+
+        MorphCover.Visibility = Visibility.Visible;
+        MorphCover.Width = 24 + (46 - 24) * progress;
+        MorphCover.Height = MorphCover.Width;
+        MorphCover.Margin = new Thickness(
+            7 + (12 - 7) * progress,     // 折叠封面左边距 7 → 展开封面左边距 12
+            6 + (11 - 6) * progress,     // 垂直同样从 6 抬到 11
+            0,
+            0);
+    }
 
     // ---------------- 生命周期 ----------------
 
@@ -696,6 +750,7 @@ public partial class MainWindow : Window
         }
 
         ApplyContentFade(height);
+        UpdateMorphCover(height);
 
         // 折叠宽度是在弹簧里连续变化的：必须等尺寸稳定后再量一次标题可用宽度，
         // 否则会拿到"上一形态"的宽度，跑马灯永远算不出溢出。
@@ -817,6 +872,7 @@ public partial class MainWindow : Window
 
         ThemeManager.Apply(id);
         _viewModel.Settings.Theme = ThemeManager.CurrentId;
+        _viewModel.RefreshAccent();
         _viewModel.SaveSettings();
         UpdateThemeMenu();
         LogService.Info($"主题切换：{ThemeManager.Current.Label}");
@@ -1595,6 +1651,8 @@ public partial class MainWindow : Window
                 _spring.SetTarget(CollapsedWidthFor(_viewModel.HasMedia), CollapsedHeight, 18);
             }
 
+            // 媒体出现/消失时封面 morph 层要跟着显示或隐藏
+            UpdateMorphCover(_spring.Height);
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(UpdateMarquee));
         }
     }
@@ -1630,9 +1688,10 @@ public partial class MainWindow : Window
         dt = Math.Clamp(dt, 0.001, 0.05);
 
         // 欠阻尼弹簧：越过目标再回弹，才有"果冻"手感；临界阻尼只会显得发死。
-        // 参数按本项目调过（参考项目是 250/31 近临界，这里刻意更 Q 一点）。
-        const double stiffness = 215.0;
-        const double damping = 11.0;
+        // 参数按本项目调过（参考项目是 250/31 近临界，这里刻意更 Q 一点）；
+        // 具体数值由设置里的动画风格（标准/顺滑/弹跳/干脆）换算。
+        double stiffness = _tabStiffness;
+        double damping = _tabDamping;
 
         int steps = Math.Max(1, (int)Math.Ceiling(dt / 0.004));
         double sub = dt / steps;
