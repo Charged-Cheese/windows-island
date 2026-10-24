@@ -8,6 +8,7 @@ obj/
 dist/
 publish-out/
 artifacts/
+packages/
 *.bak
 *.bak-*
 
