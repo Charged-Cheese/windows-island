@@ -10,6 +10,9 @@ internal sealed class SpringChannel
     public double Velocity;
     public double Target;
 
+    /// <summary>值的下限。尺寸类通道用 0，防止大幅收缩时被 overshoot 冲成负数。</summary>
+    public double MinValue = double.NegativeInfinity;
+
     public double Stiffness { get; set; } = 520;
     public double Damping { get; set; } = 34;
 
@@ -22,8 +25,20 @@ internal sealed class SpringChannel
         double force = (Target - Value) * Stiffness - Velocity * Damping;
         Velocity += force * dt;
         Value += Velocity * dt;
+
+        if (Value < MinValue)
+        {
+            // 触底：贴住下限并吃掉向下的速度（相当于完全非弹性碰撞），
+            // 下一帧由弹簧力拉回目标。这样不会出现"高度 -1"这种非法值。
+            Value = MinValue;
+            if (Velocity < 0)
+            {
+                Velocity = 0;
+            }
+        }
     }
 }
+
 
 /// <summary>
 /// 用 CompositionTarget.Rendering 逐帧驱动的弹簧动画（宽 / 高 / 圆角三条通道）。
@@ -32,9 +47,9 @@ internal sealed class SpringChannel
 /// </summary>
 internal sealed class IslandSpringEngine : IDisposable
 {
-    private readonly SpringChannel _width = new();
-    private readonly SpringChannel _height = new();
-    private readonly SpringChannel _radius = new();
+    private readonly SpringChannel _width = new() { MinValue = 0 };
+    private readonly SpringChannel _height = new() { MinValue = 0 };
+    private readonly SpringChannel _radius = new() { MinValue = 0 };
     // 悬停/拖入时的轻微纵向回弹（-4px 起始，回 0），和尺寸弹簧独立
     private readonly SpringChannel _nudge = new() { Stiffness = 260, Damping = 22 };
     private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -87,14 +102,25 @@ internal sealed class IslandSpringEngine : IDisposable
         // 快速收起途中立刻移回时，当前值可能还停在展开尺寸，
         // 但旧目标已经是折叠尺寸，这时应该按扩张参数来算。
         bool expanding = width > _width.Target + 0.5 || height > _height.Target + 0.5;
+        double distance = Math.Abs(width - _width.Value) + Math.Abs(height - _height.Value);
         _width.Stiffness = (expanding ? 355 : 300) * StiffnessScale;
         _width.Damping = (expanding ? 21 : 29) * DampingScale;
+
+        // 长行程收起（例如日历 384 → 胶囊 36）改用接近临界阻尼：
+        // 「弹跳」风格阻尼本来就低，再叠加长行程的 overshoot 会把高度压到负数。
+        if (!expanding && distance > 160)
+        {
+            double critical = 2 * Math.Sqrt(_width.Stiffness);
+            _width.Damping = Math.Max(_width.Damping, critical * 0.98);
+        }
+
         _height.Stiffness = _width.Stiffness;
         _height.Damping = _width.Damping;
         _radius.Stiffness = _width.Stiffness;
         _radius.Damping = _width.Damping;
         _nudge.Stiffness = 260 * StiffnessScale;
         _nudge.Damping = 22 * DampingScale;
+
 
         _width.Target = width;
         _height.Target = height;

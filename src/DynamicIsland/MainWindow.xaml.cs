@@ -783,9 +783,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        Island.Width = width;
-        Island.Height = height;
-        Island.CornerRadius = new CornerRadius(radius);
+        Island.Width = Math.Max(0, width);
+        Island.Height = Math.Max(0, height);
+        Island.CornerRadius = new CornerRadius(Math.Max(0, radius));
         IslandOffset.Y = _spring.NudgeOffset;
 
         if (VolumeHud is not null)
@@ -1108,7 +1108,9 @@ public partial class MainWindow : Window
 
         // 岛正在收起的过程中又移回来：直接反向目标、保留当前速度。
         // 这种情况下绝不能再 Kick，否则速度会被强行改成正向，产生顿挫/过冲。
-        bool shrinking = _spring.Height < ExpandedHeight - 1 || _spring.HeightVelocity < -5;
+        // 判定要用「当前页面」的展开高度：日历页是 384，媒体页是 184。
+        bool shrinking = _spring.Height < SizeForTab(_viewModel.ActiveTab).Height - 1
+                         || _spring.HeightVelocity < -5;
 
         SetState(IslandState.Expanded);
 

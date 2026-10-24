@@ -41,6 +41,25 @@ public partial class App : Application
         // 日志要在任何服务（含窗口的托盘图标）之前就绪，否则早期日志会被丢弃
         LogService.Init();
 
+        // 兜底：任何未处理的 UI 异常都不该让进程直接消失——
+        // 之前弹簧算出负高度赋给 Height 抛异常，用户看到的就是"岛自己没了、后台也关了"。
+        DispatcherUnhandledException += (_, args) =>
+        {
+            LogService.Warn("未处理异常（已拦截，UI 继续运行）：" + args.Exception);
+            args.Handled = true;
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            LogService.Warn("后台未处理异常：" + args.ExceptionObject);
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            LogService.Warn("未观察的任务异常：" + args.Exception);
+            args.SetObserved();
+        };
+
         _singleInstanceMutex = new Mutex(initiallyOwned: true, "DynamicIsland.SingleInstance.v1", out bool createdNew);
         if (!createdNew)
         {
