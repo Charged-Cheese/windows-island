@@ -301,7 +301,7 @@ public partial class MainWindow : Window
             {
                 OnLeftClick = () => SetState(_state == IslandState.Expanded ? IslandState.Collapsed : IslandState.Expanded),
                 OnToggleExpand = () => SetState(_state == IslandState.Expanded ? IslandState.Collapsed : IslandState.Expanded),
-                OnQuit = Close,
+                OnQuit = QuitApplication,
                 GetAutoStart = () => AutoStartService.IsEnabled,
                 SetAutoStart = enabled =>
                 {
@@ -561,7 +561,7 @@ public partial class MainWindow : Window
                 // 已改为纯悬停模式，固定功能移除
                 break;
             case "quit":
-                Close();
+                QuitApplication();
                 break;
             default:
                 if (head.StartsWith("launcher:", StringComparison.Ordinal))
@@ -960,7 +960,18 @@ public partial class MainWindow : Window
     private void MenuQuit_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
+        QuitApplication();
+    }
+
+    /// <summary>
+    /// 退出应用。App 配的是 ShutdownMode.OnExplicitShutdown，
+    /// 只 Close() 窗口会留下一个看不见的进程——单实例互斥还会挡住下次启动，
+    /// 用户只能去任务管理器结束。先关窗口走清理，再显式结束消息循环。
+    /// </summary>
+    private void QuitApplication()
+    {
         Close();
+        Application.Current?.Shutdown();
     }
 
     private void Island_MouseWheel(object sender, MouseWheelEventArgs e)
