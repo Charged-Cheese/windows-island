@@ -1,0 +1,541 @@
+<Window x:Class="DynamicIsland.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="灵动岛设置"
+        Width="452" Height="700"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        FontFamily="{StaticResource UiFont}">
+
+    <Window.Resources>
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TertiaryTextBrush}" />
+            <Setter Property="Margin" Value="2,16,0,7" />
+        </Style>
+
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style x:Key="RowBorder" TargetType="Border">
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ControlBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ChipBorder" TargetType="Border">
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="Background" Value="{DynamicResource ControlBrush}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource TrackBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="StepButton" TargetType="Border">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="{DynamicResource ControlBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource TrackBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="InputBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="7,5" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="FooterButton" TargetType="Border">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Background" Value="{DynamicResource ControlBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource TrackBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 深色细滚动条：默认的系统滚动条在透明深色窗口里非常刺眼 -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="7" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="Transparent" Margin="1,2">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb MinHeight="28">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border CornerRadius="3" Background="{DynamicResource TrackBrush}" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="14" Background="{DynamicResource MenuBgBrush}"
+            BorderBrush="{DynamicResource IslandBorderBrush}" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="8" Opacity="0.55" Color="#000000" />
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="52" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="58" />
+            </Grid.RowDefinitions>
+
+            <!-- 标题栏（可拖动） -->
+            <Grid x:Name="TitleBar" Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
+                    <TextBlock Text="灵动岛设置" FontSize="14.5" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="DynamicIsland" FontSize="10.5" Margin="9,2,0,0"
+                               Foreground="{DynamicResource TertiaryTextBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+                <Border x:Name="CloseButton" Width="30" Height="30" CornerRadius="15" HorizontalAlignment="Right"
+                        VerticalAlignment="Center" Margin="0,0,12,0" Background="Transparent"
+                        Cursor="Hand" PreviewMouseLeftButtonDown="CloseButton_PreviewMouseDown"
+                        MouseLeftButtonUp="Close_Click">
+                    <TextBlock Text="✕" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </Grid>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Padding="0,0,4,0">
+                <StackPanel Margin="18,0,14,8">
+
+                    <!-- 外观 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="外观" />
+                    <Border Style="{StaticResource Card}" Padding="6">
+                        <StackPanel>
+                            <Border Style="{StaticResource RowBorder}" Tag="obsidian" MouseLeftButtonUp="Theme_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#6C8CFF" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="曜石" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="深黑 · 蓝色强调" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ThemeCheckObsidian" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="graphite" MouseLeftButtonUp="Theme_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#6EE7D8" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="石墨" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="深灰 · 薄荷强调" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ThemeCheckGraphite" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="porcelain" MouseLeftButtonUp="Theme_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#3D6BAA" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="瓷白" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="浅色 · 适合白天" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ThemeCheckPorcelain" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 天气 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="天气与位置" />
+                    <Border Style="{StaticResource Card}" Padding="10,10,6,4">
+                        <StackPanel>
+                            <WrapPanel x:Name="CityPanel">
+                                <Border Style="{StaticResource ChipBorder}" Tag="北京|39.9042|116.4074" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="北京" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="上海|31.2304|121.4737" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="上海" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="广州|23.1291|113.2644" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="广州" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="深圳|22.5431|114.0579" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="深圳" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="杭州|30.2741|120.1551" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="杭州" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="成都|30.5728|104.0668" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="成都" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="武汉|30.5928|114.3055" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="武汉" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="西安|34.3416|108.9398" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="西安" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="南京|32.0603|118.7969" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="南京" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="重庆|29.5630|106.5516" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="重庆" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="天津|39.0842|117.2009" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="天津" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="苏州|31.2989|120.5853" MouseLeftButtonUp="City_Click">
+                                    <TextBlock Text="苏州" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                            </WrapPanel>
+
+                            <Grid Margin="0,2,4,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="CitySearchBox" Style="{StaticResource InputBox}" Height="30"
+                                         Text="" ToolTip="输入城市名后点“搜索”，自动取经纬度" />
+                                <Border Grid.Column="1" Style="{StaticResource FooterButton}" Margin="6,0,0,0"
+                                        MouseLeftButtonUp="SearchCity_Click">
+                                    <TextBlock Text="搜索" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                </Border>
+                            </Grid>
+
+                            <Grid Margin="0,0,4,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,6,0">
+                                    <TextBlock Text="纬度" FontSize="10" Foreground="{DynamicResource TertiaryTextBrush}" Margin="2,0,0,3" />
+                                    <TextBox x:Name="LatitudeBox" Style="{StaticResource InputBox}" Height="28"
+                                             LostFocus="LatLon_LostFocus" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="经度" FontSize="10" Foreground="{DynamicResource TertiaryTextBrush}" Margin="2,0,0,3" />
+                                    <TextBox x:Name="LongitudeBox" Style="{StaticResource InputBox}" Height="28"
+                                             LostFocus="LatLon_LostFocus" />
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock x:Name="WeatherHintText" FontSize="10" Margin="2,0,0,8"
+                                       Foreground="{DynamicResource TertiaryTextBrush}"
+                                       Text="当前：北京 · 经纬度 39.90, 116.41" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 模块开关 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="模块" />
+                    <Border Style="{StaticResource Card}" Padding="6">
+                        <StackPanel>
+                            <Border Style="{StaticResource RowBorder}" Tag="weather" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="☀" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="天气" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="每 10 分钟刷新" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleWeather" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="hardware" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="▥" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="硬件监视" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="CPU / 内存 / GPU / 网速" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleHardware" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="lyrics" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="♪" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="歌词匹配" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="LRCLIB 在线曲库" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleLyrics" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="notifications" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🔔" FontSize="12" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="系统通知" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="新消息弹出通知卡" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleNotifications" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 系统感知 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="系统感知" />
+                    <Border Style="{StaticResource Card}" Padding="6">
+                        <StackPanel>
+                            <Border Style="{StaticResource RowBorder}" Tag="privacy" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="●" FontSize="11" Width="22" Foreground="#FFFF9F0A" />
+                                        <TextBlock Text="隐私指示点" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="麦克风橙 / 摄像头绿" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="TogglePrivacy" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="fullscreen" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⛶" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="全屏自动隐藏" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="看视频 / 游戏时让位" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleFullscreen" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="system-alerts" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⚡" FontSize="12" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="系统事件浮层" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="电源 / USB / 键盘锁 / 勿扰" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleSystemAlerts" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="bluetooth" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="✦" FontSize="12" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="蓝牙设备提示" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="连接 / 断开 + 电量" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleBluetooth" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="clipboard" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="▤" FontSize="12" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="剪贴板预览" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="复制时显示缩略图 / 历史" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleClipboard" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="pill-lyrics" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="♪" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="折叠态歌词" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="胶囊上滚动当前歌词" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="TogglePillLyrics" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="pill-clock" MouseLeftButtonUp="Toggle_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="◷" FontSize="13" Width="22" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Text="胶囊时钟" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="折叠态右侧显示时间" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="TogglePillClock" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 歌词与音量细调 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="歌词与音量" />
+                    <Border Style="{StaticResource Card}" Padding="12,10">
+                        <StackPanel>
+                            <Grid>
+                                <StackPanel>
+                                    <TextBlock Text="歌词延迟补偿" FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    <TextBlock Text="歌词比声音慢时调正，提前时调负" FontSize="10"
+                                               Foreground="{DynamicResource TertiaryTextBrush}" Margin="0,2,0,0" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Border Style="{StaticResource StepButton}" MouseLeftButtonUp="LyricOffsetMinus_Click">
+                                        <TextBlock Text="−" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </Border>
+                                    <TextBlock x:Name="LyricOffsetText" Text="0 ms" Width="66" TextAlignment="Center"
+                                               VerticalAlignment="Center" FontSize="12"
+                                               Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    <Border Style="{StaticResource StepButton}" MouseLeftButtonUp="LyricOffsetPlus_Click">
+                                        <TextBlock Text="+" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,10" />
+
+                            <Grid>
+                                <StackPanel>
+                                    <TextBlock Text="滚轮音量步进" FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    <TextBlock Text="鼠标在折叠岛上滚动时每次调整的量" FontSize="10"
+                                               Foreground="{DynamicResource TertiaryTextBrush}" Margin="0,2,0,0" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Border Style="{StaticResource StepButton}" MouseLeftButtonUp="VolumeStepMinus_Click">
+                                        <TextBlock Text="−" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </Border>
+                                    <TextBlock x:Name="VolumeStepText" Text="4%" Width="56" TextAlignment="Center"
+                                               VerticalAlignment="Center" FontSize="12"
+                                               Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    <Border Style="{StaticResource StepButton}" MouseLeftButtonUp="VolumeStepPlus_Click">
+                                        <TextBlock Text="+" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,10" />
+
+                            <Border Style="{StaticResource RowBorder}" MouseLeftButtonUp="Marquee_Click">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="歌名跑马灯" FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="折叠态歌名过长时循环滚动" FontSize="10"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="ToggleMarquee" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 启动 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="启动" />
+                    <Border Style="{StaticResource Card}" Padding="6">
+                        <Border Style="{StaticResource RowBorder}" Tag="autostart" MouseLeftButtonUp="AutoStart_Click">
+                            <Grid>
+                                <StackPanel>
+                                    <TextBlock Text="开机自动启动" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    <TextBlock x:Name="AutoStartHint" Text="" FontSize="10"
+                                               Foreground="{DynamicResource TertiaryTextBrush}" Margin="0,2,0,0" />
+                                </StackPanel>
+                                <TextBlock x:Name="ToggleAutoStart" Text="✓" HorizontalAlignment="Right"
+                                           Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                            </Grid>
+                        </Border>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- 底部按钮 -->
+            <Grid Grid.Row="2" Margin="18,6,18,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Style="{StaticResource FooterButton}" MouseLeftButtonUp="OpenDataDir_Click">
+                    <TextBlock Text="数据目录" FontSize="11.5" Foreground="{DynamicResource SecondaryTextBrush}" />
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource FooterButton}" Margin="8,0,0,0" MouseLeftButtonUp="OpenLog_Click">
+                    <TextBlock Text="打开日志" FontSize="11.5" Foreground="{DynamicResource SecondaryTextBrush}" />
+                </Border>
+                <Border Grid.Column="3" Style="{StaticResource FooterButton}" Background="{DynamicResource AccentBrush}"
+                        MouseLeftButtonUp="Close_Click">
+                    <TextBlock Text="完成" FontSize="12" FontWeight="SemiBold" Foreground="#FF0B0B10" />
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

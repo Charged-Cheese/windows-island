@@ -1,0 +1,61 @@
+    private void SetState(IslandState state)
+    {
+        if (_state == state)
+        {
+            return;
+        }
+
+        _state = state;
+        _viewModel.State = state;
+
+        (double width, double height, double radius) = state switch
+        {
+            IslandState.Expanded => (ExpandedWidth, ExpandedHeight, 26.0),
+            IslandState.Notification => (NotificationWidth, NotificationHeight, 20.0),
+            _ => (CollapsedWidth, CollapsedHeight, 18.0)
+        };
+
+        UpdateContent(state);
+        _spring.SetTarget(width, height, radius);
+        UpdateIslandHitRect();
+    }
+
+    /// <summary>按「悬停 / 固定 / 菜单 / 通知」重新计算应该处于哪种形态。</summary>
+    private void RecomputeState()
+    {
+        if (_notificationTimer.IsEnabled)
+        {
+            SetState(IslandState.Notification);
+            return;
+        }
+
+        bool keepExpanded = _pinned || _hovered || ContextMenuPanel.Visibility == Visibility.Visible;
+        SetState(keepExpanded ? IslandState.Expanded : IslandState.Collapsed);
+    }
+
+    /// <summary>
+    /// 切换内容层。
+    /// 这里刻意不做透明度动画：之前用淡入淡出时，只要状态在动画未完成时被重复计算一次，
+    /// 就会把正在淡入的层重新从 0 开始，最终停在"全透明但可见"，表现就是只剩一片纯黑的岛体。
+    /// 现在直接切可见性，动感由弹簧尺寸变化提供；同时清掉任何残留的透明/缩放动画。
+    /// </summary>
+    private void UpdateContent(IslandState state)
+    {
+        CollapsedContent.Visibility = state == IslandState.Collapsed ? Visibility.Visible : Visibility.Collapsed;
+        ExpandedContent.Visibility = state == IslandState.Expanded ? Visibility.Visible : Visibility.Collapsed;
+        NotificationContent.Visibility = state == IslandState.Notification ? Visibility.Visible : Visibility.Collapsed;
+
+        foreach (UIElement element in new UIElement[] { CollapsedContent, ExpandedContent, NotificationContent })
+        {
+            element.BeginAnimation(OpacityProperty, null);
+            element.Opacity = 1;
+
+            if (element.RenderTransform is ScaleTransform scale)
+            {
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                scale.ScaleX = 1;
+                scale.ScaleY = 1;
+            }
+        }
+    }

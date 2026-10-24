@@ -1,0 +1,17 @@
+# 统一换行处理，避免 Windows 上反复出现 LF/CRLF 警告
+* text=auto
+
+*.cs      text diff=csharp
+*.xaml    text
+*.csproj  text
+*.md      text
+*.json    text
+*.py      text
+*.cmd     text
+*.ps1     text
+
+*.png     binary
+*.jpg     binary
+*.ico     binary
+*.exe     binary
+*.dll     binary
