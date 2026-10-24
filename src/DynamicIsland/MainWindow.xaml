@@ -138,8 +138,14 @@
                                            VerticalAlignment="Center" />
                             </StackPanel>
 
-                            <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="10"
-                                       Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="7,0,8,0" />
+                            <!-- 音乐状态图标：点击切回音乐面板（包一层 20×20 透明按钮，文字字形本身太难点） -->
+                            <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                    Cursor="Hand" ToolTip="音乐" Margin="2,0,3,0"
+                                    MouseLeftButtonUp="PillMusic_Click">
+                                <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="10"
+                                           Foreground="{DynamicResource AccentBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
                             <TextBlock Text="{Binding ClockText}" FontFamily="{StaticResource UiFont}" FontSize="12.5"
                                        FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"
                                        VerticalAlignment="Center"

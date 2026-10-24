@@ -1017,6 +1017,15 @@ public partial class MainWindow : Window
 
     // ---------------- 日历 ----------------
 
+    /// <summary>胶囊上的音乐状态图标：直接切回音乐面板。</summary>
+    private void PillMusic_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        _expandTimer.Stop();
+        _viewModel.ActiveTab = 0;
+        SetState(IslandState.Expanded);
+    }
+
     /// <summary>胶囊上的日历入口：切到日历页并展开（不经过悬停判定）。</summary>
     private void PillCalendar_Click(object sender, MouseButtonEventArgs e)
     {
