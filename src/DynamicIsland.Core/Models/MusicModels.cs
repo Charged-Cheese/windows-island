@@ -12,6 +12,14 @@ public sealed record TrackInfo
     public bool IsPlaying { get; init; }
     public TimeSpan Position { get; init; }
     public TimeSpan Duration { get; init; }
+
+    /// <summary>
+    /// 这条 <see cref="Position"/> 快照的采集时刻。媒体轮询是 450ms 一次，
+    /// 两次轮询之间 Position 是冻结的；界面侧用它加本地时钟外推，
+    /// 歌词涂色和进度条才不会一顿一顿地跳。
+    /// </summary>
+    public DateTimeOffset PositionCapturedAt { get; init; }
+
     public string SourceAppId { get; init; } = string.Empty;
     public string SourceAppName { get; init; } = string.Empty;
     public byte[]? CoverBytes { get; init; }

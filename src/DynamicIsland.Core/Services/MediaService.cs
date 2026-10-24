@@ -129,6 +129,7 @@ public sealed class MediaService : IDisposable
                 Album = album,
                 IsPlaying = playing,
                 Position = position,
+                PositionCapturedAt = DateTimeOffset.Now,
                 Duration = timeline.EndTime - timeline.StartTime,
                 SourceAppId = appId,
                 SourceAppName = ShortAppName(appId),

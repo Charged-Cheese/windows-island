@@ -137,8 +137,9 @@ dotnet publish .\src\DynamicIsland\DynamicIsland.csproj -c Release -r win-x64 `
 - **图标坞排序**：鼠标捕获 + 命中测试实现，不依赖 OLE 拖放，拖出图标范围也能正确落位
 - **通知来源解析**：handlerId → 运行中进程 exe（含别名表），取真实图标并支持点击拉起；
   打包应用走 `shell:AppsFolder\<AUMID>`
-- **歌词时间轴**：用 timeline 的 `LastUpdatedTime` 补偿播放器上报延迟，轮询 450ms，
-  实测与播放器自身进度一致（1:15 == 1:15）
+- **歌词时间轴**：用 timeline 的 `LastUpdatedTime` 补偿播放器上报延迟；450ms 的媒体快照之间
+  再按本地时钟外推位置（`TrackInfo.PositionCapturedAt`），歌词涂色与进度条每 200ms 连续前进，
+  不会一顿一顿地跳
 - **LRCLIB** 歌词、**Open-Meteo** 天气与地理编码（均免 Key）
 - **wpndatabase.db 只读解析**获取系统通知（绕开未打包应用的授权限制）
 - **硬件监控**：`GetSystemTimes` + `GlobalMemoryStatusEx` + PDH GPU 计数器 + `NetworkInterface`

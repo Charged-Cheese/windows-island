@@ -810,11 +810,42 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             return;
         }
 
-        PositionText = FormatTime(track.Position);
+        // 用本地时钟把 450ms 轮询之间的位置补上：进度条和歌词涂色才是连续前进的，
+        // 否则每 0.45 秒才跳一段，看起来就是"歌词跟不上"。
+        TimeSpan position = EffectivePosition(track);
+        PositionText = FormatTime(position);
         DurationText = FormatTime(track.Duration);
-        RemainText = FormatRemain(track.Duration - track.Position);
-        ProgressRatio = track.ProgressRatio;
-        UpdateLyricLines(track);
+        RemainText = FormatRemain(track.Duration - position);
+        ProgressRatio = track.Duration > TimeSpan.Zero
+            ? Math.Clamp(position.TotalMilliseconds / track.Duration.TotalMilliseconds, 0, 1)
+            : 0;
+        UpdateLyricLines(track, position);
+    }
+
+    /// <summary>
+    /// 在两次媒体轮询（450ms）之间用本地时钟外推播放位置。
+    /// 不做单调钳制：seek 后退本来就该允许回退，播放器上报抖动最多让涂色退一两帧，肉眼看不出来。
+    /// </summary>
+    private static TimeSpan EffectivePosition(TrackInfo track)
+    {
+        if (!track.IsPlaying || track.PositionCapturedAt == default)
+        {
+            return track.Position;
+        }
+
+        TimeSpan age = DateTimeOffset.Now - track.PositionCapturedAt;
+        if (age <= TimeSpan.Zero || age > TimeSpan.FromSeconds(3))
+        {
+            return track.Position;
+        }
+
+        TimeSpan position = track.Position + age;
+        if (track.Duration > TimeSpan.Zero && position > track.Duration)
+        {
+            position = track.Duration;
+        }
+
+        return position;
     }
 
     private void UpdateLyricLines(TrackInfo track, TimeSpan? positionOverride = null)

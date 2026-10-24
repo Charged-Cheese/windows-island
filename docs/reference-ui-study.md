@@ -352,3 +352,16 @@ tab 轮播 250/31，位移 34px、缩放 0.965、`alpha=(1-eased)^1.4`；歌词�
 `Infrastructure/IslandSpringEngine.cs`、`ViewModels/IslandViewModel.cs`、
 `Core/Services/SettingsService.cs`、`MainWindow.xaml/.cs`、`SettingsWindow.xaml/.cs`、`README.md`。
 
+## 10. 歌词不同步修复（2026-10-24 晚）
+
+31. **位置外推**：媒体轮询是 450ms 一次，`TrackInfo.Position` 在两次轮询之间是冻结的；
+    界面每 200ms 读一次这个快照，歌词涂色于是每 0.45 秒才跳一段，观感就是"涂色跟不上声音"。
+    修法：`TrackInfo` 增加 `PositionCapturedAt`，`IslandViewModel.EffectivePosition` 按
+    "快照位置 + 本地时钟流逝"外推到当前帧，进度条 / 时间文本 / 歌词行判定统一走这个值。
+    实测：连拍 40 帧（150ms 间隔），涂色边界连续前进（每帧 +11~28px），19 帧无一停顿，
+    只剩行切换时归零——修复前是每 3 帧才动一次。
+
+改动文件：`Core/Models/MusicModels.cs`、`Core/Services/MediaService.cs`、
+`ViewModels/IslandViewModel.cs`、`README.md`。
+
+
