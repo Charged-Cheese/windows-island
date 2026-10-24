@@ -127,7 +127,6 @@ public partial class MainWindow : Window
     private readonly IslandViewModel _viewModel = new();
     private readonly DispatcherTimer _notificationTimer;
     private readonly DispatcherTimer _autoCollapseTimer;
-    private readonly DispatcherTimer _expandTimer;
     private readonly DispatcherTimer _volumeHudTimer;
     private readonly DispatcherTimer _spectrumTimer;
     private readonly Border[] _spectrumBars;
@@ -192,13 +191,6 @@ public partial class MainWindow : Window
             }
 
             RecomputeState();
-        };
-
-        _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
-        _expandTimer.Tick += (_, _) =>
-        {
-            _expandTimer.Stop();
-            ExpandFromCollapsed();
         };
 
         _volumeHudTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1100) };
@@ -1021,7 +1013,6 @@ public partial class MainWindow : Window
     private void PillMusic_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        _expandTimer.Stop();
         _viewModel.ActiveTab = 0;
         SetState(IslandState.Expanded);
     }
@@ -1030,7 +1021,6 @@ public partial class MainWindow : Window
     private void PillCalendar_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        _expandTimer.Stop();
         _viewModel.ActiveTab = 7;
         SetState(IslandState.Expanded);
     }
@@ -1159,12 +1149,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        // 悬停后延迟 150ms 再展开：
-        // 1) 鼠标只是划过时不再频繁弹开；
-        // 2) 给「点击胶囊上的日历图标」留出命中时间——否则悬停立即展开后，
-        //    折叠层被展开层盖住，点下去只会落到媒体页上。
-        _expandTimer.Stop();
-        _expandTimer.Start();
+        // 立即展开（不做悬停延迟）
+        ExpandFromCollapsed();
     }
 
     /// <summary>延迟展开：鼠标已进入且仍处于折叠态时才执行。</summary>
@@ -1197,7 +1183,6 @@ public partial class MainWindow : Window
     private void Island_MouseLeave(object sender, MouseEventArgs e)
     {
         _hovered = false;
-        _expandTimer.Stop();
 
         if (_notificationTimer.IsEnabled ||
             ContextMenuPanel.Visibility == Visibility.Visible ||
