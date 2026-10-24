@@ -90,6 +90,10 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         StopFocusCommand = new RelayCommand(_ => StopFocus());
         CopyClipboardCommand = new RelayCommand(parameter => CopyClipboard(parameter));
         ClearClipboardCommand = new RelayCommand(_ => ClearClipboard());
+        PreviousMonthCommand = new RelayCommand(() => ShiftCalendarMonth(-1));
+        NextMonthCommand = new RelayCommand(() => ShiftCalendarMonth(1));
+        CalendarTodayCommand = new RelayCommand(GoToCalendarToday);
+        SelectDayCommand = new RelayCommand(parameter => SelectDay(parameter));
     }
 
     public AppSettings Settings { get; }
@@ -635,12 +639,20 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     // 日历
     public ObservableCollection<CalendarCell> CalendarDays { get; } = new();
 
+    // 当前显示的是哪个月（1 号），与"今天"分开：翻月不会改变今天
+    private DateTime _calendarMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime _selectedDate = DateTime.Today;
+
     private string _calendarTitle = string.Empty;
     public string CalendarTitle
     {
         get => _calendarTitle;
         private set => SetProperty(ref _calendarTitle, value);
     }
+
+    /// <summary>标题右侧的选中日期文案。</summary>
+    public string CalendarSelectedText
+        => _selectedDate.ToString("M月d日 dddd", new System.Globalization.CultureInfo("zh-CN"));
 
     public string CalendarWeekdays => "一 二 三 四 五 六 日";
 
@@ -673,6 +685,10 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public RelayCommand StopFocusCommand { get; }
     public RelayCommand CopyClipboardCommand { get; }
     public RelayCommand ClearClipboardCommand { get; }
+    public RelayCommand PreviousMonthCommand { get; }
+    public RelayCommand NextMonthCommand { get; }
+    public RelayCommand CalendarTodayCommand { get; }
+    public RelayCommand SelectDayCommand { get; }
 
     public event EventHandler<NotificationItem>? NotificationArrived;
 
@@ -1667,7 +1683,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private void RefreshCalendar()
     {
         DateTime today = DateTime.Today;
-        DateTime first = new(today.Year, today.Month, 1);
+        DateTime first = new(_calendarMonth.Year, _calendarMonth.Month, 1);
         int offset = ((int)first.DayOfWeek + 6) % 7; // 周一为第一列
         DateTime start = first.AddDays(-offset);
 
@@ -1677,14 +1693,54 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             DateTime day = start.AddDays(i);
             CalendarDays.Add(new CalendarCell
             {
-                Day = day.Day.ToString(),
+                Date = day,
                 IsToday = day == today,
-                IsCurrentMonth = day.Month == today.Month
+                IsCurrentMonth = day.Month == first.Month && day.Year == first.Year,
+                IsSelected = day == _selectedDate
             });
         }
 
-        CalendarTitle = $"{today:yyyy年M月}";
+        CalendarTitle = $"{first:yyyy年M月}";
+        OnPropertyChanged(nameof(CalendarSelectedText));
         _lastCalendarDate = today;
+    }
+
+    private void ShiftCalendarMonth(int delta)
+    {
+        _calendarMonth = _calendarMonth.AddMonths(delta);
+        RefreshCalendar();
+    }
+
+    private void GoToCalendarToday()
+    {
+        _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        _selectedDate = DateTime.Today;
+        RefreshCalendar();
+    }
+
+    private void SelectDay(object? parameter)
+    {
+        if (parameter is not CalendarCell cell)
+        {
+            return;
+        }
+
+        _selectedDate = cell.Date.Date;
+
+        // 点到上/下月的日期：顺手把日历翻到那个月
+        if (_selectedDate.Month != _calendarMonth.Month || _selectedDate.Year != _calendarMonth.Year)
+        {
+            _calendarMonth = new DateTime(_selectedDate.Year, _selectedDate.Month, 1);
+            RefreshCalendar();
+            return;
+        }
+
+        foreach (CalendarCell item in CalendarDays)
+        {
+            item.IsSelected = item.Date == _selectedDate;
+        }
+
+        OnPropertyChanged(nameof(CalendarSelectedText));
     }
 
     // ---------------- 通知 ----------------

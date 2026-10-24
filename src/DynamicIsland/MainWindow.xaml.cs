@@ -86,15 +86,40 @@ public partial class MainWindow : Window
         public IntPtr lpData;
     }
     // 固定窗口尺寸，必须 ≥ 展开态
-    private const double WindowWidth = 540;
-    private const double WindowHeight = 400;
+    private const double WindowWidth = 600;
+    private const double WindowHeight = 470;
 
     private const double CollapsedWidth = 204;
     private const double CollapsedHeight = 36;
     private const double CollapsedWeatherWidth = 248;
 
+    // 媒体页的默认展开尺寸；其余页面按 TabSizes 单独给高度
     private const double ExpandedWidth = 380;
     private const double ExpandedHeight = 184;
+
+    private const double ExpandedRadius = 26.0;
+
+    /// <summary>
+    /// 每个页面自己的面板尺寸。以前所有页面共用 380×184，还要被顶部媒体条占掉 62px，
+    /// 日历只能挤在剩下的 ~100px 里，六行日期几乎叠在一起。
+    /// </summary>
+    private static readonly (double Width, double Height)[] TabSizes =
+    {
+        (ExpandedWidth, ExpandedHeight),  // 0 媒体
+        (ExpandedWidth, 156),             // 1 天气
+        (ExpandedWidth, 184),             // 2 硬件
+        (ExpandedWidth, 156),             // 3 图标坞
+        (ExpandedWidth, 220),             // 4 通知
+        (ExpandedWidth, 196),             // 5 歌词
+        (ExpandedWidth, 220),             // 6 剪贴板
+        (396, 384)                        // 7 日历
+    };
+
+    /// <summary>音乐 / 歌词页才在顶部显示媒体条；其它功能页整块让给内容。</summary>
+    private static bool TabShowsMedia(int tab) => tab is 0 or 5;
+
+    private static (double Width, double Height) SizeForTab(int tab)
+        => tab >= 0 && tab < TabSizes.Length ? TabSizes[tab] : TabSizes[0];
 
     private const double NotificationWidth = 420;
     private const double NotificationHeight = 92;
@@ -254,7 +279,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_state == IslandState.Notification || !_viewModel.HasMedia || _viewModel.Cover is null)
+        // 音乐/歌词页才有封面位；展开状态下切到其它功能页要把封面一起收掉
+        bool hideForPage = _state == IslandState.Expanded && !TabShowsMedia(_viewModel.ActiveTab);
+        if (_state == IslandState.Notification || hideForPage
+            || !_viewModel.HasMedia || _viewModel.Cover is null)
         {
             MorphCover.Visibility = Visibility.Collapsed;
             return;
@@ -625,7 +653,9 @@ public partial class MainWindow : Window
 
         (double width, double height, double radius) = state switch
         {
-            IslandState.Expanded => (ExpandedWidth, ExpandedHeight, 26.0),
+            IslandState.Expanded => (SizeForTab(_viewModel.ActiveTab).Width,
+                                     SizeForTab(_viewModel.ActiveTab).Height,
+                                     ExpandedRadius),
             IslandState.Notification => (NotificationWidth, NotificationHeight, 20.0),
             _ => (CollapsedWidthFor(_viewModel.HasMedia), CollapsedHeight, 18.0)
         };
@@ -681,7 +711,21 @@ public partial class MainWindow : Window
         }
 
         NotificationContent.Visibility = Visibility.Collapsed;
+        UpdateMediaHeaderVisibility();
         ApplyContentFade(_spring.Height);
+    }
+
+    /// <summary>音乐条只在音乐 / 歌词页出现；其它页面隐藏后，整块高度让给该页内容。</summary>
+    private void UpdateMediaHeaderVisibility()
+    {
+        if (MediaHeader is null)
+        {
+            return;
+        }
+
+        MediaHeader.Visibility = TabShowsMedia(_viewModel.ActiveTab)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     /// <summary>通知卡入场：从上方略小开始落位，避免硬切。</summary>
@@ -961,6 +1005,44 @@ public partial class MainWindow : Window
     {
         e.Handled = true;
         QuitApplication();
+    }
+
+    // ---------------- 日历 ----------------
+
+    /// <summary>右键菜单里的日历入口：直接切到日历页并保持展开。</summary>
+    private void MenuCalendar_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        _viewModel.ActiveTab = 7;
+        HideContextMenu();
+        SetState(IslandState.Expanded);
+    }
+
+    private void CalendarPrev_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        _viewModel.PreviousMonthCommand.Execute(null);
+    }
+
+    private void CalendarNext_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        _viewModel.NextMonthCommand.Execute(null);
+    }
+
+    private void CalendarToday_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        _viewModel.CalendarTodayCommand.Execute(null);
+    }
+
+    private void CalendarDay_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is FrameworkElement { Tag: CalendarCell cell })
+        {
+            _viewModel.SelectDayCommand.Execute(cell);
+        }
     }
 
     /// <summary>
@@ -1636,6 +1718,15 @@ public partial class MainWindow : Window
     {
         if (e.PropertyName == nameof(IslandViewModel.ActiveTab))
         {
+            // 切页同时换面板尺寸：日历要 384 高，通知要 236，音乐只要 184
+            UpdateMediaHeaderVisibility();
+            if (_state == IslandState.Expanded)
+            {
+                (double width, double height) = SizeForTab(_viewModel.ActiveTab);
+                _spring.SetTarget(width, height, ExpandedRadius);
+                UpdateIslandHitRect();
+            }
+
             StartTabTransition(_viewModel.ActiveTab);
             return;
         }
@@ -1672,6 +1763,35 @@ public partial class MainWindow : Window
     {
         double target = Math.Clamp(index, 0, _tabPages.Length - 1);
         _tabTarget = target;
+
+        // 跨多页（例如日历 7 → 媒体 0）：如果还走"连续位置弹簧"，中间会依次闪过
+        // 天气、硬件、图标坞……实测肉眼可见。这种跳转直接落位，只保留尺寸弹簧。
+        if (Math.Abs(_tabPosition - target) > 1.001)
+        {
+            if (_tabAnimating)
+            {
+                CompositionTarget.Rendering -= OnTabRendering;
+                _tabAnimating = false;
+            }
+
+            _tabPosition = target;
+            _tabVelocity = 0;
+            ApplyTabTransition();
+
+            // 直接落位没有"滑入"，补一次短淡入，避免内容硬切
+            FrameworkElement page = _tabPages[(int)target];
+            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            fade.Completed += (_, _) =>
+            {
+                page.BeginAnimation(UIElement.OpacityProperty, null);
+                page.Opacity = 1;
+            };
+            page.BeginAnimation(UIElement.OpacityProperty, fade);
+            return;
+        }
 
         if (_tabAnimating)
         {
@@ -1947,10 +2067,11 @@ public partial class MainWindow : Window
         Point mouse = Mouse.GetPosition(RootGrid);
         LauncherMenuLayer.Visibility = Visibility.Visible;
 
-        // 菜单尽量留在岛体内（展开态宽高是固定的），避免像弹到桌面一样突兀
-        double islandLeft = (ActualWidth - ExpandedWidth) / 2.0;
-        double left = Math.Clamp(mouse.X - 60, islandLeft + 4, islandLeft + ExpandedWidth - 138);
-        double top = Math.Clamp(mouse.Y + 8, 4, Math.Max(4, ExpandedHeight - 84));
+        // 菜单尽量留在岛体内（面板尺寸随页面变化），避免像弹到桌面一样突兀
+        (double pageWidth, double pageHeight) = SizeForTab(_viewModel.ActiveTab);
+        double islandLeft = (ActualWidth - pageWidth) / 2.0;
+        double left = Math.Clamp(mouse.X - 60, islandLeft + 4, islandLeft + pageWidth - 138);
+        double top = Math.Clamp(mouse.Y + 8, 4, Math.Max(4, pageHeight - 84));
         Canvas.SetLeft(LauncherMenuPanel, left);
         Canvas.SetTop(LauncherMenuPanel, top);
 
