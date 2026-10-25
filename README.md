@@ -53,7 +53,7 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 - **右侧分页点**：当前页拉长成胶囊并跟随切换弹簧，点击可切页
 - **拖进度条**：点击或拖动跳转播放位置；右侧显示剩余时间（`-m:ss`），
   拖动时轨道加粗并出现强调色光晕，松手后保持选中位置直到播放器确认
-- **拖文件到岛上**：加入图标坞；拖图标可调整顺序；右键图标 → 打开文件位置 / 从图标坞移除
+- **拖文件到岛上**：加入图标坞，每行固定六个图标，第七个从下一行开始；拖图标可调整顺序；右键图标 → 打开文件位置 / 从图标坞移除
 - **点击图标**：启动该应用；若 4 秒内没有检测到程序启动，
   图标坞顶部会显示红色提示（快捷方式失效、被安全软件拦截或程序自身异常）
 - **主题**：右键 → 主题，或在设置里切换，曜石 / 石墨 / 瓷白即时生效并记住
@@ -109,6 +109,12 @@ dotnet publish .\src\DynamicIsland\DynamicIsland.csproj -c Release -r win-x64 `
 
 ```powershell
 dotnet run --project .\tools\HistoryScrollbars.SelfTest\HistoryScrollbars.SelfTest.csproj
+```
+
+图标坞布局自检使用真实图标模板，检查不同 DPI、图标数量和视口宽度下的六列排布，不启动图标对应的应用：
+
+```powershell
+dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csproj
 ```
 
 ## 数据目录
