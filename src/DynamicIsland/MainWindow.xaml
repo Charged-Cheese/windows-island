@@ -719,7 +719,8 @@
                                         <ItemsControl ItemsSource="{Binding Launchers}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
-                                                    <WrapPanel Orientation="Horizontal" />
+                                                    <!-- 固定六列，第七项始终从第二行开始；不再按临界宽度自动换行。 -->
+                                                    <UniformGrid Columns="6" VerticalAlignment="Top" />
                                                 </ItemsPanelTemplate>
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
