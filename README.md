@@ -177,3 +177,7 @@ dotnet publish .\src\DynamicIsland\DynamicIsland.csproj -c Release -r win-x64 `
 - 隐私点依赖 Windows 隐私记录，个别应用不写记录时可能不亮
 - 需 .NET 10 桌面运行时（`Microsoft.WindowsDesktop.App 10.x`）
 - 单文件仅框架依赖，未做代码签名
+
+## 许可证
+
+[MIT](LICENSE)
