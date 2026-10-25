@@ -2,6 +2,8 @@
 
 Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面板，聚合通知、媒体、歌词、天气、硬件与快捷启动。
 
+[更新说明](CHANGELOG.md)
+
 ![展开态](docs/shots/desktop-expanded-v2.png)
 
 ## 功能
