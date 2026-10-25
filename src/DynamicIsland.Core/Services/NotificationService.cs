@@ -28,6 +28,9 @@ public sealed class NotificationService : IDisposable
 
     private const string WpnDatabaseRelativePath = @"Microsoft\Windows\Notifications\wpndatabase.db";
 
+    /// <summary>通知轮询间隔。聊天应用撤回通知很快，间隔不能太长。</summary>
+    private const int PollIntervalMs = 600;
+
     private readonly HashSet<uint> _seen = new();
     private UserNotificationListener? _listener;
     private Timer? _timer;
@@ -118,6 +121,11 @@ public sealed class NotificationService : IDisposable
                     _seen.Add(item.Id);
                 }
 
+                // 通知中心一有变化就立刻补一次轮询：
+                // 很多聊天应用（QQ / 微信）在消息被读走或窗口激活后会马上撤回系统通知，
+                // 只靠定时轮询容易整条漏掉，甚至只剩"邮箱"这类不会被撤回的通知。
+                _listener.NotificationChanged += OnListenerNotificationChanged;
+
                 return true;
             }
 
@@ -173,7 +181,31 @@ public sealed class NotificationService : IDisposable
     private void StartTimer()
     {
         _timer?.Dispose();
-        _timer = new Timer(_ => _ = PollAsync(), null, 1200, 1800);
+        // 600ms 轮询：聊天类通知被撤回得很快，间隔太长会漏。
+        _timer = new Timer(_ => _ = PollAsync(), null, 800, PollIntervalMs);
+    }
+
+    /// <summary>
+    /// 通知中心变化（新增 / 移除）时立即补一次轮询。
+    /// 系统可能在两次定时轮询之间就把通知撤回，事件能把这段窗口补上。
+    /// </summary>
+    private void OnListenerNotificationChanged(
+        UserNotificationListener sender,
+        UserNotificationChangedEventArgs args)
+    {
+        try
+        {
+            // Change(0, …) 让定时器立刻触发一次，同时保留后续周期
+            _timer?.Change(0, PollIntervalMs);
+        }
+        catch (ObjectDisposedException)
+        {
+            // 服务已释放
+        }
+        catch (Exception ex)
+        {
+            LogService.Warn("通知变化回调异常：" + ex.Message);
+        }
     }
 
     private async Task PollAsync()
@@ -479,6 +511,20 @@ public sealed class NotificationService : IDisposable
 
     public void Dispose()
     {
+        if (_listener is not null)
+        {
+            try
+            {
+                _listener.NotificationChanged -= OnListenerNotificationChanged;
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            _listener = null;
+        }
+
         _timer?.Dispose();
         _timer = null;
     }

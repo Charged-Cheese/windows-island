@@ -636,8 +636,20 @@ public partial class MainWindow : Window
 
     private void ShowTestNotification(string app, string title, string body)
     {
+        // 与真实通知保持同一套打断规则：正在拖动 / 菜单打开 / 拖图标时不弹卡
+        if (_viewModel.IsSeeking
+            || ContextMenuPanel.Visibility == Visibility.Visible
+            || LauncherMenuLayer.Visibility == Visibility.Visible
+            || _launcherDragging)
+        {
+            return;
+        }
+
+        // 先记下当前状态再推通知：PushTestNotification 会同步触发 NotificationArrived，
+        // 那边已经把状态切成 Notification，之后再读 _state 会把"通知态"当成恢复目标，
+        // 通知卡就永远收不回去了。
+        _stateBeforeNotification = _state;
         _viewModel.PushTestNotification(app, title, body);
-        _stateBeforeNotification = _state == IslandState.Expanded ? IslandState.Collapsed : _state;
         SetState(IslandState.Notification);
         _notificationTimer.Stop();
         _notificationTimer.Start();
@@ -815,7 +827,15 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            if (_state == IslandState.Expanded)
+            // 以前是「只要岛处于展开态就不弹卡」，结果用户悬停在岛上等消息时，
+            // 通知只会进历史、界面上毫无反应（测试者最容易正好是这个姿势）。
+            // 现在只在真正操作岛的时候才不打断：拖动进度/音量、菜单打开、拖图标。
+            bool interacting = _viewModel.IsSeeking
+                || ContextMenuPanel.Visibility == Visibility.Visible
+                || LauncherMenuLayer.Visibility == Visibility.Visible
+                || _launcherDragging;
+
+            if (interacting)
             {
                 return;
             }
