@@ -727,12 +727,12 @@ public partial class MainWindow : Window
         }
 
         NotificationContent.Visibility = Visibility.Collapsed;
-        UpdateMediaHeaderVisibility();
+        UpdateExpandedContentLayout();
         ApplyContentFade(_spring.Height);
     }
 
-    /// <summary>音乐条只在音乐 / 歌词页出现；其它页面隐藏后，整块高度让给该页内容。</summary>
-    private void UpdateMediaHeaderVisibility()
+    /// <summary>按当前页设置媒体条和展开内容的布局。</summary>
+    private void UpdateExpandedContentLayout()
     {
         if (MediaHeader is null)
         {
@@ -742,6 +742,19 @@ public partial class MainWindow : Window
         MediaHeader.Visibility = TabShowsMedia(_viewModel.ActiveTab)
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+        // 图标坞按最终展开尺寸排版，外层岛体只负责裁剪。
+        // 快速开关时不能让图标跟着每一帧的岛宽重新挤压、换行。
+        bool launcher = _viewModel.ActiveTab == 3;
+        (double width, double height) = SizeForTab(_viewModel.ActiveTab);
+        ExpandedContent.Width = launcher
+            ? width - Island.BorderThickness.Left - Island.BorderThickness.Right
+            : double.NaN;
+        ExpandedContent.Height = launcher
+            ? height - Island.BorderThickness.Top - Island.BorderThickness.Bottom
+            : double.NaN;
+        ExpandedContent.HorizontalAlignment = launcher ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+        ExpandedContent.VerticalAlignment = launcher ? VerticalAlignment.Top : VerticalAlignment.Stretch;
     }
 
     /// <summary>通知卡入场：从上方略小开始落位，避免硬切。</summary>
@@ -776,6 +789,18 @@ public partial class MainWindow : Window
 
         double collapsed = Math.Clamp((84 - height) / 34, 0, 1);
         double expanded = Math.Clamp((height - 62) / 74, 0, 1);
+
+        if (_viewModel.ActiveTab == 3)
+        {
+            // 图标在面板接近成形后再淡入。宽、高都要满足进度要求，
+            // 避免沿用固定高度阈值时，岛还很窄图标却已经完全显示。
+            // 使用当前尺寸而非重播定时动画，中途反向时透明度保持连续。
+            (double targetWidth, double targetHeight) = SizeForTab(3);
+            double collapsedWidth = CollapsedWidthFor(_viewModel.HasMedia);
+            double widthProgress = (_spring.Width - collapsedWidth) / (targetWidth - collapsedWidth);
+            double heightProgress = (height - CollapsedHeight) / (targetHeight - CollapsedHeight);
+            expanded = Math.Clamp((Math.Min(widthProgress, heightProgress) - 0.8) / 0.2, 0, 1);
+        }
 
         // smoothstep：线性淡入在两端会有灰影
         collapsed = collapsed * collapsed * (3 - 2 * collapsed);
@@ -1816,7 +1841,7 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(IslandViewModel.ActiveTab))
         {
             // 切页同时换面板尺寸：日历要 384 高，通知要 236，音乐只要 184
-            UpdateMediaHeaderVisibility();
+            UpdateExpandedContentLayout();
             if (_state == IslandState.Expanded)
             {
                 (double width, double height) = SizeForTab(_viewModel.ActiveTab);
@@ -1858,8 +1883,16 @@ public partial class MainWindow : Window
 
     private void StartTabTransition(int index)
     {
+        // 淡入动画会覆盖 Opacity 的本地值。切页前移除旧时钟，
+        // 让弹簧重新接管所有页面，避免快速切换时旧页仍被动画显示出来。
+        foreach (FrameworkElement page in _tabPages)
+        {
+            page.BeginAnimation(UIElement.OpacityProperty, null);
+        }
+
         double target = Math.Clamp(index, 0, _tabPages.Length - 1);
         _tabTarget = target;
+        ApplyTabTransition();
 
         // 跨多页（例如日历 7 → 媒体 0）：如果还走"连续位置弹簧"，中间会依次闪过
         // 天气、硬件、图标坞……实测肉眼可见。这种跳转直接落位，只保留尺寸弹簧。
@@ -1879,12 +1912,10 @@ public partial class MainWindow : Window
             FrameworkElement page = _tabPages[(int)target];
             var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
             {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            fade.Completed += (_, _) =>
-            {
-                page.BeginAnimation(UIElement.OpacityProperty, null);
-                page.Opacity = 1;
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                // 结束后恢复 ApplyTabTransition 写入的基础值；不使用 Completed
+                // 回调强制设为 1，否则过期回调会把已经离开的页面重新显示。
+                FillBehavior = FillBehavior.Stop
             };
             page.BeginAnimation(UIElement.OpacityProperty, fade);
             return;
