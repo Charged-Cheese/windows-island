@@ -160,6 +160,7 @@ public partial class MainWindow : Window
     private IslandState _stateBeforeNotification = IslandState.Collapsed;
     private Rect _islandHitRect = Rect.Empty;
     private bool _hovered;
+    private bool _historyScrollDragging;
 
     public MainWindow()
     {
@@ -640,7 +641,8 @@ public partial class MainWindow : Window
         if (_viewModel.IsSeeking
             || ContextMenuPanel.Visibility == Visibility.Visible
             || LauncherMenuLayer.Visibility == Visibility.Visible
-            || _launcherDragging)
+            || _launcherDragging
+            || _historyScrollDragging)
         {
             return;
         }
@@ -707,6 +709,7 @@ public partial class MainWindow : Window
 
         // 纯悬停模式：不再有「固定展开」，只要鼠标不在岛上（且菜单没开）就收起
         bool keepExpanded = _hovered
+            || _historyScrollDragging
             || ContextMenuPanel.Visibility == Visibility.Visible
             || LauncherMenuLayer.Visibility == Visibility.Visible;
         SetState(keepExpanded ? IslandState.Expanded : IslandState.Collapsed);
@@ -858,7 +861,8 @@ public partial class MainWindow : Window
             bool interacting = _viewModel.IsSeeking
                 || ContextMenuPanel.Visibility == Visibility.Visible
                 || LauncherMenuLayer.Visibility == Visibility.Visible
-                || _launcherDragging;
+                || _launcherDragging
+                || _historyScrollDragging;
 
             if (interacting)
             {
@@ -1155,13 +1159,26 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 图标坞 / 通知页内部有 ScrollViewer，它会先吞掉滚轮（Handled=true），
-    /// 导致这两页滚不动切页。这里在预览阶段统一截获，优先切页。
+    /// 图标坞 / 通知 / 剪贴板页内部有 ScrollViewer；预览阶段统一截获滚轮切页，
+    /// 列表内容通过滚动条拖动或点击轨道查看。
     /// </summary>
     private void ContentScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
         e.Handled = true;
         HandleWheel(e.Delta);
+    }
+
+    private void HistoryScroll_DragStarted(object sender, DragStartedEventArgs e)
+    {
+        _historyScrollDragging = true;
+        _autoCollapseTimer.Stop();
+    }
+
+    private void HistoryScroll_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        _historyScrollDragging = false;
+        _hovered = Island.IsMouseOver;
+        RecomputeState();
     }
 
     private void HandleWheel(int delta)
@@ -1257,7 +1274,7 @@ public partial class MainWindow : Window
         }
 
         // 拖放 / 图标拖拽 / 鼠标其实还在岛体（子元素捕获）时保持展开
-        if (DropHint.Visibility == Visibility.Visible || _launcherDragging || Island.IsMouseOver)
+        if (DropHint.Visibility == Visibility.Visible || _launcherDragging || _historyScrollDragging || Island.IsMouseOver)
         {
             return;
         }

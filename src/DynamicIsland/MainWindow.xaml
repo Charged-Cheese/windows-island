@@ -16,6 +16,85 @@
         Loaded="Window_Loaded">
 
     <Window.Resources>
+        <!-- 历史列表专用：8px 命中区、4px 滑块，不占用滚轮切页手势。 -->
+        <Style x:Key="HistoryScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Border Width="2" CornerRadius="1" Background="{DynamicResource TrackBrush}" />
+                            <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="True">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb MinHeight="18" Cursor="Hand">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Grid Background="Transparent">
+                                                    <Border x:Name="Grip" Width="4" CornerRadius="2"
+                                                            Background="{DynamicResource SecondaryTextBrush}" Opacity="0.6" />
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Grip" Property="Opacity" Value="1" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter TargetName="Grip" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                        <Setter TargetName="Grip" Property="Opacity" Value="1" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="HistoryScrollViewerStyle" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                    CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                    Content="{TemplateBinding Content}"
+                                                    ContentTemplate="{TemplateBinding ContentTemplate}" />
+                            <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1" Margin="5,0,0,0"
+                                       Orientation="Vertical" Style="{StaticResource HistoryScrollBarStyle}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Value="{Binding VerticalOffset, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <!-- 磨砂颗粒：3×3 平铺的细噪点，叠在玻璃层上，透明度极低 -->
         <DrawingBrush x:Key="FrostNoiseBrush" TileMode="Tile" Viewport="0,0,3,3"
                       ViewportUnits="Absolute" Stretch="None">
@@ -692,9 +771,12 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Visibility="{Binding HasNotifications, Converter={StaticResource InverseBoolToVis}}" />
 
-                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden"
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                                  Style="{StaticResource HistoryScrollViewerStyle}"
                                                   HorizontalScrollBarVisibility="Disabled"
                                                   PreviewMouseWheel="ContentScroll_PreviewMouseWheel"
+                                                  Thumb.DragStarted="HistoryScroll_DragStarted"
+                                                  Thumb.DragCompleted="HistoryScroll_DragCompleted"
                                                   Visibility="{Binding HasNotifications, Converter={StaticResource BoolToVis}}">
                                         <ItemsControl ItemsSource="{Binding Notifications}">
                                             <ItemsControl.ItemTemplate>
@@ -840,9 +922,12 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Visibility="{Binding HasClipboard, Converter={StaticResource InverseBoolToVis}}" />
 
-                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden"
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                                  Style="{StaticResource HistoryScrollViewerStyle}"
                                                   HorizontalScrollBarVisibility="Disabled"
                                                   PreviewMouseWheel="ContentScroll_PreviewMouseWheel"
+                                                  Thumb.DragStarted="HistoryScroll_DragStarted"
+                                                  Thumb.DragCompleted="HistoryScroll_DragCompleted"
                                                   Visibility="{Binding HasClipboard, Converter={StaticResource BoolToVis}}">
                                         <ItemsControl ItemsSource="{Binding ClipboardItems}">
                                             <ItemsControl.ItemTemplate>
