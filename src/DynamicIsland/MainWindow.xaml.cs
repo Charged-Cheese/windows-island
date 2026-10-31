@@ -143,16 +143,26 @@ public partial class MainWindow : Window
     private bool _clipboardIgnoreNext;
 
     // 页面切换：一个连续的弹簧位置驱动 5 个页面和右侧分页点
-    private readonly Stopwatch _tabClock = Stopwatch.StartNew();
     private readonly FrameworkElement[] _tabPages;
     private readonly Border[] _tabDots;
+
+    // ---- 切页调度：单页计时动画 + 串行队列 ----
+    // _tabPosition 是"页索引的浮点值"（0=媒体 … 5=日历），只写 RenderTransform，不参与布局。
+    // 每页固定 280ms，队列保证「一页播完再开下一页」，中间页一定完整可见——
+    // 这也是不允许"一次滚动直接改目标索引"的原因。
     private double _tabPosition;
-    private double _tabVelocity;
-    private double _tabTarget;
-    private double _tabLastSeconds;
     private bool _tabAnimating;
-    private double _tabStiffness = 215.0;
-    private double _tabDamping = 11.0;
+    private double _tabAnimFrom;
+    private double _tabAnimTo;
+    private DateTime _tabAnimStart;
+    private readonly List<int> _tabQueue = new();
+
+    // 队列执行器自己改 ActiveTab 时把通知打回去，否则会再入队一次。
+    private bool _tabSyncingTarget;
+
+    private const double TabTransitionMs = 280.0;
+    private const int TabQueueLimit = 3;
+    private const double TabSlideDistance = 34.0;
     private bool _privacyPulseRunning;
 
     private IslandState _state = IslandState.Collapsed;
@@ -240,8 +250,6 @@ public partial class MainWindow : Window
         _spectrumTimer.Start();
 
         // 滚轮冷却结束时把冷却期内攒下的那一页补上，避免"滚了没动"
-        _wheelCooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(WheelNavCooldown) };
-        _wheelCooldownTimer.Tick += FlushWheelNavigation;
 
         _viewModel.NotificationArrived += OnNotificationArrived;
         _viewModel.NotificationArrived += (_, _) => Dispatcher.BeginInvoke(UpdateIslandHitRect);
@@ -354,17 +362,8 @@ public partial class MainWindow : Window
         string style = _viewModel.Settings.AnimationStyle;
         _spring.ApplyStyle(style);
 
-        // 翻页要跟手：弹簧回到原速，刚度和阻尼都按风格给，不做额外放慢。
+        // 翻页不再用弹簧：固定 280ms 的计时动画 + 队列（见 StartTabStep）。
         // 尺寸弹簧（岛体宽高）另有一套、更软，页面切换快、岛体变形慢，两者解耦。
-        // 标准档取 260/26（阻尼比 ≈0.80）：比临界阻尼软一点，收尾有极轻余震，
-        // 但不是参考项目 200/10 那种明显果冻。
-        (_tabStiffness, _tabDamping) = style switch
-        {
-            "smooth" => (260.0, 40.0),
-            "bouncy" => (286.0, 18.2),
-            "snappy" => (390.0, 33.8),
-            _ => (260.0, 26.0)
-        };
     }
 
     /// <summary>
@@ -1327,22 +1326,15 @@ public partial class MainWindow : Window
         RecomputeState();
     }
 
-    // 滚轮累积：一格 = 100（鼠标一格是 120，触控板小步累积到 100 也算一格）
-    // 滚轮一格 = 120 单位（Windows 的 WHEEL_DELTA）。按格数翻页而不是固定 +1，
-    // 系统把连续几格合并成一个事件时（快速滚），才不会只翻一页。
+    // 滚轮一格 = 120 单位（Windows 的 WHEEL_DELTA）。触控板的小步会先攒够一格，
+    // 攒满才发一次翻页请求——不是把多次事件合并掉，而是把"不足一格的碎步"归一化。
     private const int WheelNotchDelta = 120;
 
-    // 单次事件最多翻 3 页，避免一口气转十几格时从媒体直接飞到日历。
+    // 一次事件里最多折算 3 格（鼠标滚轮通常一格一事件；触控板惯性可能一次报很大）。
     private const int WheelMaxNotches = 3;
 
-    // 只留 40ms 防抖（一颗滚轮齿不可能这么快连发两次）；
-    // 冷却期内攒下的格数不丢，冷却结束补翻。
-    private const int WheelNavCooldown = 40;
     private int _wheelAccum;
-    private int _wheelPendingStep;
-    private DateTime _lastWheelNav = DateTime.MinValue;
     private DateTime _lastTabTransition = DateTime.MinValue;
-    private DispatcherTimer? _wheelCooldownTimer;
     private bool _shadowFaded;
 
     /// <summary>岛体阴影的基准不透明度（与 MainWindow.xaml 里 DropShadowEffect 的 Opacity 一致）。</summary>
@@ -1353,7 +1345,6 @@ public partial class MainWindow : Window
         // 展开态滚轮切页（与右侧分页点同一套页面），折叠态仍调音量。
         if (_state == IslandState.Expanded)
         {
-            // 按格数翻页：一次滚动几格就翻几页（上限 3 页）。
             _wheelAccum += delta;
 
             int notches = _wheelAccum / WheelNotchDelta;
@@ -1361,22 +1352,18 @@ public partial class MainWindow : Window
             {
                 return;
             }
+
             _wheelAccum -= notches * WheelNotchDelta;
 
-            // 向上滚（正）是上一页，向下滚（负）是下一页
-            int step = Math.Clamp(-notches, -WheelMaxNotches, WheelMaxNotches);
-
-            var now = DateTime.UtcNow;
-            if ((now - _lastWheelNav).TotalMilliseconds < WheelNavCooldown)
+            // 向上滚（正）= 上一页，向下滚（负）= 下一页。
+            // 每次请求只走一页；多格也只是多排几次队，由队列串行播放，绝不直接跳页。
+            int dir = notches > 0 ? -1 : 1;
+            int count = Math.Min(Math.Abs(notches), WheelMaxNotches);
+            for (int i = 0; i < count; i++)
             {
-                // 冷却期内不丢格数：攒起来，冷却结束一次补翻。
-                _wheelPendingStep = Math.Clamp(_wheelPendingStep + step, -WheelMaxNotches, WheelMaxNotches);
-                _wheelCooldownTimer?.Stop();
-                _wheelCooldownTimer?.Start();
-                return;
+                RequestTabStep(dir);
             }
 
-            NavigateTab(step, now);
             return;
         }
 
@@ -1385,36 +1372,97 @@ public partial class MainWindow : Window
         ShowVolumeHud();
     }
 
-    private void NavigateTab(int step, DateTime now)
+    /// <summary>
+    /// 滚轮/键盘：请求往相邻页走一步。动画没播完就排队，永远只差一页。
+    /// 反方向滚动时把还没播的排队清掉，立刻往反方向翻——否则"往前两页再往后一页"
+    /// 会出现先往右跳两格再回来的怪动作。
+    /// </summary>
+    private void RequestTabStep(int step)
     {
-        _lastWheelNav = now;
-        _wheelPendingStep = 0;
-
-        int next = Math.Clamp(_viewModel.ActiveTab + step, 0, 5);
-        if (next == _viewModel.ActiveTab)
+        if (step == 0)
         {
             return;
         }
 
-        _viewModel.ActiveTab = next;
-        if (next == 4)
+        // 基准点：动画进行中时，逻辑上已经站在「本步的目标页」上，
+        // 用 _tabAnimTo 而不是 Round(_tabPosition)（后者在动画前 100ms 会少算一页）。
+        int basePos = (int)Math.Round(_tabAnimating ? _tabAnimTo : _tabPosition);
+        int last = _tabQueue.Count > 0 ? _tabQueue[^1] : basePos;
+        int target = Math.Clamp(last + step, 0, _tabPages.Length - 1);
+        if (target == last)
         {
-            _viewModel.SyncNotificationHistory();
+            return;
+        }
+
+        if (_tabQueue.Count > 0)
+        {
+            int queuedDir = Math.Sign(last - basePos);
+            if (queuedDir != 0 && Math.Sign(step) != queuedDir)
+            {
+                _tabQueue.Clear();
+                last = basePos;
+                target = Math.Clamp(last + step, 0, _tabPages.Length - 1);
+                if (target == last)
+                {
+                    return;
+                }
+            }
+        }
+
+        EnqueueTab(target);
+    }
+
+    /// <summary>
+    /// 点击分页点/日历入口：逐页走到 target（最多整条链 5 步），同样一页一页播，
+    /// 不允许一步落位——那是"硬切"，也是之前跳页的根源之一。
+    /// </summary>
+    private void RequestTabTo(int target)
+    {
+        target = Math.Clamp(target, 0, _tabPages.Length - 1);
+        int from = _tabQueue.Count > 0
+            ? _tabQueue[^1]
+            : (int)Math.Round(_tabAnimating ? _tabAnimTo : _tabPosition);
+        if (from == target)
+        {
+            return;
+        }
+
+        int dir = Math.Sign(target - from);
+        for (int p = from + dir; ; p += dir)
+        {
+            EnqueueTab(p, bypassLimit: true);
+            if (p == target)
+            {
+                break;
+            }
         }
     }
 
-    private void FlushWheelNavigation(object? sender, EventArgs e)
+    /// <summary>入队；队列空闲时立刻开播。</summary>
+    private void EnqueueTab(int target, bool bypassLimit = false)
     {
-        _wheelCooldownTimer?.Stop();
-
-        int step = _wheelPendingStep;
-        _wheelPendingStep = 0;
-        if (step == 0 || _state != IslandState.Expanded)
+        if (target < 0 || target >= _tabPages.Length)
         {
             return;
         }
 
-        NavigateTab(step, DateTime.UtcNow);
+        if (!_tabAnimating && _tabQueue.Count == 0)
+        {
+            StartTabStep(target);
+            return;
+        }
+
+        if (_tabQueue.Count > 0 && _tabQueue[^1] == target)
+        {
+            return;
+        }
+
+        if (!bypassLimit && _tabQueue.Count >= TabQueueLimit)
+        {
+            return;
+        }
+
+        _tabQueue.Add(target);
     }
 
     private void Island_MouseEnter(object sender, MouseEventArgs e)
@@ -2152,7 +2200,7 @@ public partial class MainWindow : Window
 
             // bloom 跟着页面走：媒体页（含歌词）强一些，其他页弱一些
             ThemeManager.SetBloomStrength(TabShowsMedia(_viewModel.ActiveTab) ? 0.12 : 0.07);
-            StartTabTransition(_viewModel.ActiveTab);
+            OnActiveTabChanged();
             return;
         }
 
@@ -2252,135 +2300,115 @@ public partial class MainWindow : Window
         timer.Start();
     }
 
-    private void StartTabTransition(int index)
+    /// <summary>
+    /// ActiveTab 变了（点分页点、日历入口、通知卡、命令行 tab: 都走这里）：
+    /// 统一转成逐页请求，不允许一步落位。队列执行器自己改 ActiveTab 时不回环。
+    /// </summary>
+    private void OnActiveTabChanged()
     {
-        // 淡入动画会覆盖 Opacity 的本地值。切页前移除旧时钟，
-        // 让弹簧重新接管所有页面，避免快速切换时旧页仍被动画显示出来。
+        if (_tabSyncingTarget)
+        {
+            return;
+        }
+
+        RequestTabTo(_viewModel.ActiveTab);
+    }
+    private void StartTabStep(int target)
+    {
+        target = Math.Clamp(target, 0, _tabPages.Length - 1);
+
+        // 淡入动画会覆盖 Opacity 的本地值；每步开始前清掉旧时钟。
         foreach (FrameworkElement page in _tabPages)
         {
             page.BeginAnimation(UIElement.OpacityProperty, null);
         }
 
-        double target = Math.Clamp(index, 0, _tabPages.Length - 1);
-        _tabTarget = target;
+        _tabAnimFrom = _tabPosition;
+        _tabAnimTo = target;
+        _tabAnimStart = DateTime.UtcNow;
+        _lastTabTransition = _tabAnimStart;
 
-        _lastTabTransition = DateTime.UtcNow;
+        // 让 ViewModel 切到目标页：内容可见性、页头、bloom 强度、岛体高度弹簧都在那里。
+        // 必须放在动画开始之前，否则滑进来的还是旧内容——那就是"先清空再加载"。
+        if (_viewModel.ActiveTab != target)
+        {
+            _tabSyncingTarget = true;
+            try
+            {
+                _viewModel.ActiveTab = target;
+            }
+            finally
+            {
+                _tabSyncingTarget = false;
+            }
+        }
+
+        if (target == 4)
+        {
+            _viewModel.SyncNotificationHistory();
+        }
 
         BeginTabTransitionVisual();
-        ApplyTabTransition();
 
-        // 跨多页（例如日历 5 → 媒体 0）：如果还走"连续位置弹簧"，中间会依次闪过
-        // 天气、硬件、图标坞……实测肉眼可见。这种跳转直接落位，只保留尺寸弹簧。
-        if (Math.Abs(_tabPosition - target) > 1.001)
-        {
-            if (_tabAnimating)
-            {
-                CompositionTarget.Rendering -= OnTabRendering;
-                _tabAnimating = false;
-            }
-
-            _tabPosition = target;
-            _tabVelocity = 0;
-            ApplyTabTransition();
-
-            // 直接落位没有"滑入"，补一次短淡入，避免内容硬切
-            FrameworkElement page = _tabPages[(int)target];
-            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
-            {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-                // 结束后恢复 ApplyTabTransition 写入的基础值；不使用 Completed
-                // 回调强制设为 1，否则过期回调会把已经离开的页面重新显示。
-                FillBehavior = FillBehavior.Stop
-            };
-            page.BeginAnimation(UIElement.OpacityProperty, fade);
-
-            // 硬落位没有弹簧收敛帧可等，用一次性延时把阴影挂回去
-            ScheduleEndTabTransitionVisual(TimeSpan.FromMilliseconds(220));
-            return;
-        }
-
-        // 动画还没停就又要切页：不改位置、只改目标，让弹簧继续追。
-        // 连滚时页面是连续滑过去的，不硬落位也不会丢输入——丢输入才是"不跟手"的根源。
-        if (_tabAnimating)
-        {
-            return;
-        }
-
-        if (_tabAnimating)
-        {
-            return;
-        }
-
-        if (Math.Abs(_tabPosition - target) < 0.0005)
+        // 系统关了动画（减少动效）或时长为 0：直接落位，不播过渡。
+        if (!SystemParameters.ClientAreaAnimation || TabTransitionMs <= 0)
         {
             _tabPosition = target;
-            _tabVelocity = 0;
             ApplyTabTransition();
-            EndTabTransitionVisual();
+            FinishTabStep();
             return;
         }
 
         _tabAnimating = true;
-        _tabLastSeconds = _tabClock.Elapsed.TotalSeconds;
+        CompositionTarget.Rendering -= OnTabRendering;
         CompositionTarget.Rendering += OnTabRendering;
+        ApplyTabTransition();
     }
 
     private void OnTabRendering(object? sender, EventArgs e)
     {
-        double now = _tabClock.Elapsed.TotalSeconds;
-        double dt = now - _tabLastSeconds;
-        _tabLastSeconds = now;
-        dt = Math.Clamp(dt, 0.001, 0.05);
-
-        // 欠阻尼弹簧：越过目标再回弹，才有"果冻"手感；临界阻尼只会显得发死。
-        // 参数按本项目调过（参考项目是 250/31 近临界，这里刻意更 Q 一点）；
-        // 具体数值由设置里的动画风格（标准/顺滑/弹跳/干脆）换算。
-        double stiffness = _tabStiffness;
-        double damping = _tabDamping;
-
-        int steps = Math.Max(1, (int)Math.Ceiling(dt / 0.004));
-        double sub = dt / steps;
-        for (int i = 0; i < steps; i++)
+        double t = (DateTime.UtcNow - _tabAnimStart).TotalMilliseconds / TabTransitionMs;
+        if (t >= 1 || t < 0)
         {
-            double force = (_tabTarget - _tabPosition) * stiffness - _tabVelocity * damping;
-            _tabVelocity += force * sub;
-            _tabPosition += _tabVelocity * sub;
-        }
-
-        double max = _tabPages.Length - 1;
-        if (_tabPosition < 0)
-        {
-            _tabPosition = 0;
-            if (_tabVelocity < 0)
-            {
-                _tabVelocity = 0;
-            }
-        }
-        else if (_tabPosition > max)
-        {
-            _tabPosition = max;
-            if (_tabVelocity > 0)
-            {
-                _tabVelocity = 0;
-            }
-        }
-
-        ApplyTabTransition();
-
-        if (Math.Abs(_tabPosition - _tabTarget) < 0.002 && Math.Abs(_tabVelocity) < 0.02)
-        {
-            _tabPosition = _tabTarget;
-            _tabVelocity = 0;
+            _tabPosition = _tabAnimTo;
             ApplyTabTransition();
-            _tabAnimating = false;
-            CompositionTarget.Rendering -= OnTabRendering;
-            EndTabTransitionVisual();
+            FinishTabStep();
+            return;
         }
+
+        // cubic-bezier(0.22, 1, 0.36, 1)：起步快、尾巴极软，没有任何回弹。
+        _tabPosition = _tabAnimFrom + (_tabAnimTo - _tabAnimFrom) * EaseOutQuint(t);
+        ApplyTabTransition();
+    }
+
+    /// <summary>一步播完：队列里还有就立刻接下一步，否则收尾（退订渲染、阴影淡回）。</summary>
+    private void FinishTabStep()
+    {
+        _tabAnimating = false;
+
+        if (_tabQueue.Count > 0)
+        {
+            int next = _tabQueue[0];
+            _tabQueue.RemoveAt(0);
+            StartTabStep(next);
+            return;
+        }
+
+        CompositionTarget.Rendering -= OnTabRendering;
+        EndTabTransitionVisual();
+    }
+
+    /// <summary>cubic-bezier(0.22,1,0.36,1) 的近似：quint-out，末端近乎静止、不回弹。</summary>
+    private static double EaseOutQuint(double t)
+    {
+        double u = 1 - Math.Clamp(t, 0, 1);
+        double u2 = u * u;
+        return 1 - u2 * u2 * u;
     }
 
     /// <summary>
-    /// 把连续的 tab 位置落到画面上：每个页面按"与当前位置的距离"水平滑动、缩放、淡出；
-    /// 分页点同样连续变化，速度快时拉长一点，像被甩出去再弹回来。
+    /// 把位置落到画面上：每页按"与当前位置的距离"垂直滑动、轻微缩放、淡出。
+    /// 只写 RenderTransform / Opacity 这些合成属性，不碰布局。
     /// </summary>
     private void ApplyTabTransition()
     {
@@ -2388,8 +2416,6 @@ public partial class MainWindow : Window
         {
             return;
         }
-
-        double speed = Math.Abs(_tabVelocity);
 
         for (int i = 0; i < _tabPages.Length; i++)
         {
@@ -2404,15 +2430,14 @@ public partial class MainWindow : Window
 
             double scale = 1 - 0.035 * eased;
 
-            // 水平滑动：下一页从右边进来、上一页往左边出去，方向与滚轮一致。
+            // 垂直滑动：下一页从下方进入、上一页往上退出，方向与滚轮一致。
             // 位移只作用在页面自己的 RenderTransform 上，不参与布局，不会挤压内容。
-            // 34px 与参考项目一致；缩放只收到 0.965，读起来是"滑过去"而不是"缩进去"。
-            double offsetX = (i - _tabPosition) * 34;
+            double offsetY = (i - _tabPosition) * TabSlideDistance;
 
             FrameworkElement page = _tabPages[i];
 
-            // 只有当前页和左右邻页在动。其余页彻底收起来，既省掉每帧的 8 次属性写入，
-            // 也让 WPF 不必为一个透明全尺寸子树建合成层——折叠动画期间这才是主要开销。
+            // 只有当前页和左右邻页在动。其余页彻底收起来，既省掉每帧的属性写入，
+            // 也让 WPF 不必为一个透明全尺寸子树建合成层。
             if (opacity <= 0)
             {
                 if (page.Visibility != Visibility.Collapsed)
@@ -2439,8 +2464,8 @@ public partial class MainWindow : Window
             {
                 scaleTransform.ScaleX = scale;
                 scaleTransform.ScaleY = scale;
-                translate.X = offsetX;
-                translate.Y = 0;
+                translate.X = 0;
+                translate.Y = offsetY;
             }
         }
 
@@ -2448,12 +2473,11 @@ public partial class MainWindow : Window
         {
             double distance = Math.Min(Math.Abs(i - _tabPosition), 1.0);
             double eased = distance * distance * (3 - 2 * distance);
-            double stretch = Math.Min(speed * 0.8, 3.0) * (1 - eased);
 
             // 高度变化改用缩放：分页点的 Height 一改就要重新测量整个右侧竖列。
             if (_tabDots[i].RenderTransform is ScaleTransform dotScale)
             {
-                dotScale.ScaleY = (4 + 8 * (1 - eased) + stretch) / 4.0;
+                dotScale.ScaleY = (4 + 8 * (1 - eased)) / 4.0;
             }
 
             _tabDots[i].Opacity = 0.25 + 0.65 * (1 - eased);
