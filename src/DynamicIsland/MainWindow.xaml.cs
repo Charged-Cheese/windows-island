@@ -356,12 +356,14 @@ public partial class MainWindow : Window
 
         // 翻页要跟手：弹簧回到原速，刚度和阻尼都按风格给，不做额外放慢。
         // 尺寸弹簧（岛体宽高）另有一套、更软，页面切换快、岛体变形慢，两者解耦。
+        // 标准档取 260/26（阻尼比 ≈0.80）：比临界阻尼软一点，收尾有极轻余震，
+        // 但不是参考项目 200/10 那种明显果冻。
         (_tabStiffness, _tabDamping) = style switch
         {
-            "smooth" => (300.0, 45.5),
-            "bouncy" => (330.0, 23.1),
-            "snappy" => (450.0, 41.3),
-            _ => (300.0, 33.0)
+            "smooth" => (260.0, 40.0),
+            "bouncy" => (286.0, 18.2),
+            "snappy" => (390.0, 33.8),
+            _ => (260.0, 26.0)
         };
     }
 
@@ -2400,11 +2402,12 @@ public partial class MainWindow : Window
                 opacity = 0;
             }
 
-            double scale = 1 - 0.075 * eased;
+            double scale = 1 - 0.035 * eased;
 
             // 水平滑动：下一页从右边进来、上一页往左边出去，方向与滚轮一致。
             // 位移只作用在页面自己的 RenderTransform 上，不参与布局，不会挤压内容。
-            double offsetX = (i - _tabPosition) * 36;
+            // 34px 与参考项目一致；缩放只收到 0.965，读起来是"滑过去"而不是"缩进去"。
+            double offsetX = (i - _tabPosition) * 34;
 
             FrameworkElement page = _tabPages[i];
 
