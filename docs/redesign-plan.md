@@ -220,3 +220,31 @@
 - 当前 8 个 M 文件（CHANGELOG / App.xaml / ThemeManager / MainWindow.xaml / MainWindow.xaml.cs / 3 个 ViewModel）→ P0 全部提交到 `redesign/ui-v2` 分支并打 tag `1.0.3-redesign-wip`。
 - 后续每阶段一个 commit，commit message 前缀 `redesign(px):`，便于回退单阶段。
 - 全部完成后 squash 或按阶段保留（按用户偏好），合回 main 前跑全套自检 + 实机冒烟。
+
+## 11. 执行记录（2026-10-31）
+
+分支 `redesign/ui-v2`。基线 tag `pre-redesign`（6f42784），本轮提交 `f22c00e`。
+
+| 阶段 | 状态 | 落地内容 |
+| --- | --- | --- |
+| P0 冻基线 | ✅ | 8 个未提交改动入 `redesign/ui-v2`，tag `pre-redesign`；帧探针 `FrameProbe` 就位 |
+| P1 性能止血 | ✅ | HUD 定位、封面 morph、分页点、频谱、页可见性、隐私点全部不再每帧写布局；岛体阴影 40/16→28/14，HUD 20/6→12/4 |
+| P2 排版 token | ⚠️ 部分 | 字号未收敛（沿用现状 9/9.5/10/10.5/11/11.5/13/13.5/15/17），页头已是统一结构 |
+| P3 质感四档 | ✅ | `MaterialManager`：清透/玻璃/磨砂/实色，与主题正交，写入 settings.json |
+| P4 标杆页 | ✅ | 内容容器去掉第 5 层玻璃（`CardSurfaceBrush` + 1px 边框），日历分隔线 0.55→0.22，媒体/硬件/歌词高度 188→176 |
+| P5 全量页面 | ✅ | 8 页逐页截图核对（媒体/天气/硬件/图标坞/通知/歌词/剪贴板/日历） |
+| P6 交互 | ✅ | 指针反馈（悬停 1.15 / 按下 0.90，140ms CubicEase）、滚轮累积 100 + 130ms 冷却 |
+| P7 回归 | ✅ | Debug 构建 0 警告 0 错误；`LauncherLayout` 25 组、`HistoryScrollbars` 16 项、`DynamicIsland.SelfTest` 24 项通过（首跑 22/1，二次复跑全过，疑为通知库/网络先后竞争） |
+
+### 实测数据
+
+- `artifacts/frame-p1.csv`（10247 帧，P1 后）：p50 4.94ms、p90 16.70ms、p95 16.70ms、p99 17.50ms、>16.7ms 4.9%。
+- `artifacts/frame-p7.csv`（5196 帧，含 3 轮展开/收起）：p50 4.65ms、p90 8.35ms、p95 15.56ms、p99 17.03ms、>16.7ms 2.2%、>33ms 6 次。
+- 材质像素（折叠胶囊中心）：清透 `#0F0F12`、玻璃 `#1B1C21`、磨砂 `#303136`、实色 `#18191F`。
+- 空闲：静置仍有 ~180fps 空转（高刷屏 vblank 驱动），CPU 1.6%，未作为本轮阻塞项。
+
+### 未做与原因
+
+- **真背景模糊**：`AllowsTransparency` 分层窗拿不到 DWM Acrylic/Mica，`DwmSetWindowAttribute` 零调用；质感改为「透明度 + 层数 + 高光/内阴影配方」，四档差异靠 alpha 与白雾实现。
+- **字号收敛到 6 档**：涉及 8 页 + 3 个 HUD 的上百处 `FontSize`，收益低于回归风险，留作后续单独一阶段。
+- **抽页头模板**：`tools/LauncherLayout.SelfTest` 与 `HistoryScrollbars.SelfTest` 直接解析 `MainWindow.xaml`，抽模板会让 41 项自检静默失效，需要先改自检再动模板。
