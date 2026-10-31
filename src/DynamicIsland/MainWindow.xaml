@@ -314,42 +314,48 @@
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
                                         Margin="0,0,2,0">
-                                <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource ControlBrush}" Cursor="Hand"
+                                <!-- 主操作实心强调，其余幽灵钮：同尺寸、同基线，只有播放键抢视觉重量 -->
+                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
                                         MouseLeftButtonUp="PrevButton_Click">
-                                    <TextBlock Text="&#xE892;" FontFamily="{StaticResource IconFont}" FontSize="8"
-                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                    <TextBlock Text="&#xE892;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
-                                <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource ControlBrush}" Cursor="Hand"
-                                        Margin="4,0" MouseLeftButtonUp="PlayButton_Click">
-                                    <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="10"
-                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                <Border Width="30" Height="30" CornerRadius="15" Background="{DynamicResource AccentBrush}" Cursor="Hand"
+                                        Margin="5,0" MouseLeftButtonUp="PlayButton_Click">
+                                    <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="11"
+                                               Foreground="{DynamicResource IslandBgBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
-                                <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource ControlBrush}" Cursor="Hand"
+                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
                                         MouseLeftButtonUp="NextButton_Click">
-                                    <TextBlock Text="&#xE893;" FontFamily="{StaticResource IconFont}" FontSize="8"
-                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                    <TextBlock Text="&#xE893;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
-                                <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource ControlBrush}" Cursor="Hand"
-                                        Margin="7,0,0,0" ToolTip="切换播放器来源"
+                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
+                                        Margin="5,0,0,0" ToolTip="切换播放器来源"
                                         Visibility="{Binding CanSwitchSource, Converter={StaticResource BoolToVis}}"
                                         MouseLeftButtonUp="SwitchSource_Click">
-                                    <TextBlock Text="⇄" FontFamily="{StaticResource UiFont}" FontSize="11"
-                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                    <TextBlock Text="⇄" FontFamily="{StaticResource UiFont}" FontSize="9"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
-                                <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource ControlBrush}" Cursor="Hand"
-                                        Margin="7,0,0,0" ToolTip="静音 / 取消静音" MouseLeftButtonUp="MuteButton_Click">
-                                    <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="10"
-                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
+                                        Margin="5,0,0,0" ToolTip="静音 / 取消静音" MouseLeftButtonUp="MuteButton_Click">
+                                    <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="9"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <!-- 展开态的日历入口：悬停展开后点这里直接进日历 -->
-                                <Border Width="22" Height="22" CornerRadius="11" Background="{DynamicResource ControlBrush}" Cursor="Hand"
+                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
                                         Margin="5,0,0,0" ToolTip="日历" MouseLeftButtonUp="PillCalendar_Click">
-                                    <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="9"
+                                    <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="8"
                                                Foreground="{DynamicResource SecondaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
@@ -595,10 +601,36 @@
                                             </StackPanel>
                                         </StackPanel>
 
-                                        <TextBlock Grid.Column="1" Text="{Binding WeatherDetail}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"
-                                                   TextAlignment="Right" TextWrapping="Wrap"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <!-- 指标改成三列小格：比一整行「体感 28° · 湿度 66% · 风 22 km/h」
+                                             更好扫读，也避免窄宽度下折行折得难看 -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,2,6,0">
+                                            <StackPanel Margin="0,0,13,0">
+                                                <TextBlock Text="体感" FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                                           Foreground="{DynamicResource TertiaryTextBrush}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding WeatherFeelsLike}" FontFamily="{StaticResource UiFont}"
+                                                           FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,1,0,0"
+                                                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,13,0">
+                                                <TextBlock Text="湿度" FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                                           Foreground="{DynamicResource TertiaryTextBrush}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding WeatherHumidity}" FontFamily="{StaticResource UiFont}"
+                                                           FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,1,0,0"
+                                                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="风速" FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                                           Foreground="{DynamicResource TertiaryTextBrush}" HorizontalAlignment="Right" />
+                                                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12.5" FontWeight="SemiBold"
+                                                           HorizontalAlignment="Right" Margin="0,1,0,0"
+                                                           Foreground="{DynamicResource PrimaryTextBrush}">
+                                                    <Run Text="{Binding WeatherWind, Mode=OneWay}" /><Run Text=" " /><Run Text="km/h"
+                                                                                                         FontSize="8.5"
+                                                                                                         Foreground="{DynamicResource TertiaryTextBrush}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </StackPanel>
                                     </Grid>
 
                                     <ItemsControl Grid.Row="2" ItemsSource="{Binding WeatherForecastParts}" Margin="0,4,0,0">
@@ -654,147 +686,72 @@
                                         </Grid.RowDefinitions>
 
                                         <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource InsetSurfaceBrush}"
-                                        CornerRadius="10" Padding="9,6" Margin="0,0,4,4">
+                                        CornerRadius="10" Padding="10,8" Margin="0,0,4,4">
                                     <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <Grid Grid.Row="0">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="CPU" FontFamily="{StaticResource UiFont}" FontSize="10"
-                                                           Foreground="{DynamicResource SecondaryTextBrush}" />
-                                                <TextBlock Text="{Binding CpuText}" FontFamily="{StaticResource UiFont}"
-                                                           FontSize="11.5" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource PrimaryTextBrush}" Margin="6,0,0,0" />
-                                            </StackPanel>
-                                            <Polyline Points="{Binding CpuHistoryPoints}" Stretch="None"
-                                                      Stroke="{DynamicResource AccentBrush}" StrokeThickness="1"
-                                                      Width="52" Height="16" Opacity="0.8"
-                                                      HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                        </Grid>
-                                        <Border x:Name="CpuTrack" Grid.Row="1" Height="4" CornerRadius="2"
-                                                Background="{DynamicResource TrackBrush}" Margin="0,5,0,0"
-                                                VerticalAlignment="Bottom">
-                                            <Border HorizontalAlignment="Left" CornerRadius="2"
-                                                    Background="{Binding CpuRatio, Converter={StaticResource RatioToBrush}}">
-                                                <Border.Width>
-                                                    <MultiBinding Converter="{StaticResource RatioToWidth}">
-                                                        <Binding Path="CpuRatio" />
-                                                        <Binding ElementName="CpuTrack" Path="ActualWidth" />
-                                                    </MultiBinding>
-                                                </Border.Width>
-                                            </Border>
-                                        </Border>
+                                        <!-- 折线已经表达了历史趋势，底部那条同源进度条是重复信息，删掉换成大号数值 -->
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="CPU" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding CpuText}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="17" FontWeight="SemiBold" Margin="0,1,0,0"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        </StackPanel>
+                                        <Polyline Points="{Binding CpuHistoryPoints}" Stretch="None"
+                                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.2"
+                                                  Width="88" Height="22" Opacity="0.85"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
 
                                         <Border Grid.Row="0" Grid.Column="1" Background="{DynamicResource InsetSurfaceBrush}"
-                                        CornerRadius="10" Padding="9,6" Margin="4,0,0,4">
+                                        CornerRadius="10" Padding="10,8" Margin="4,0,0,4">
                                     <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <Grid Grid.Row="0">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="内存" FontFamily="{StaticResource UiFont}" FontSize="10"
-                                                           Foreground="{DynamicResource SecondaryTextBrush}" />
-                                                <TextBlock Text="{Binding MemoryText}" FontFamily="{StaticResource UiFont}"
-                                                           FontSize="11.5" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource PrimaryTextBrush}" Margin="6,0,0,0" />
-                                            </StackPanel>
-                                            <Polyline Points="{Binding MemoryHistoryPoints}" Stretch="None"
-                                                      Stroke="{DynamicResource AccentBrush}" StrokeThickness="1"
-                                                      Width="52" Height="16" Opacity="0.8"
-                                                      HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                        </Grid>
-                                        <Border x:Name="MemTrack" Grid.Row="1" Height="4" CornerRadius="2"
-                                                Background="{DynamicResource TrackBrush}" Margin="0,5,0,0"
-                                                VerticalAlignment="Bottom">
-                                            <Border HorizontalAlignment="Left" CornerRadius="2"
-                                                    Background="{Binding MemoryRatio, Converter={StaticResource RatioToBrush}}">
-                                                <Border.Width>
-                                                    <MultiBinding Converter="{StaticResource RatioToWidth}">
-                                                        <Binding Path="MemoryRatio" />
-                                                        <Binding ElementName="MemTrack" Path="ActualWidth" />
-                                                    </MultiBinding>
-                                                </Border.Width>
-                                            </Border>
-                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="内存" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding MemoryText}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="17" FontWeight="SemiBold" Margin="0,1,0,0"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        </StackPanel>
+                                        <Polyline Points="{Binding MemoryHistoryPoints}" Stretch="None"
+                                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.2"
+                                                  Width="88" Height="22" Opacity="0.85"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
 
                                         <Border Grid.Row="1" Grid.Column="0" Background="{DynamicResource InsetSurfaceBrush}"
-                                        CornerRadius="10" Padding="9,6" Margin="0,4,4,0"
+                                        CornerRadius="10" Padding="10,8" Margin="0,4,4,0"
                             Visibility="{Binding HasGpu, Converter={StaticResource BoolToVis}}">
                                     <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <Grid Grid.Row="0">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="GPU" FontFamily="{StaticResource UiFont}" FontSize="10"
-                                                           Foreground="{DynamicResource SecondaryTextBrush}" />
-                                                <TextBlock Text="{Binding GpuText}" FontFamily="{StaticResource UiFont}"
-                                                           FontSize="11.5" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource PrimaryTextBrush}" Margin="6,0,0,0" />
-                                            </StackPanel>
-                                            <Polyline Points="{Binding GpuHistoryPoints}" Stretch="None"
-                                                      Stroke="{DynamicResource AccentBrush}" StrokeThickness="1"
-                                                      Width="52" Height="16" Opacity="0.8"
-                                                      HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                        </Grid>
-                                        <Border x:Name="GpuTrack" Grid.Row="1" Height="4" CornerRadius="2"
-                                                Background="{DynamicResource TrackBrush}" Margin="0,5,0,0"
-                                                VerticalAlignment="Bottom">
-                                            <Border HorizontalAlignment="Left" CornerRadius="2"
-                                                    Background="{Binding GpuRatio, Converter={StaticResource RatioToBrush}}">
-                                                <Border.Width>
-                                                    <MultiBinding Converter="{StaticResource RatioToWidth}">
-                                                        <Binding Path="GpuRatio" />
-                                                        <Binding ElementName="GpuTrack" Path="ActualWidth" />
-                                                    </MultiBinding>
-                                                </Border.Width>
-                                            </Border>
-                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="GPU" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding GpuText}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="17" FontWeight="SemiBold" Margin="0,1,0,0"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        </StackPanel>
+                                        <Polyline Points="{Binding GpuHistoryPoints}" Stretch="None"
+                                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.2"
+                                                  Width="88" Height="22" Opacity="0.85"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
 
                                         <Border Grid.Row="1" Grid.Column="1" Background="{DynamicResource InsetSurfaceBrush}"
-                                        CornerRadius="10" Padding="9,6" Margin="4,4,0,0">
+                                        CornerRadius="10" Padding="10,8" Margin="4,4,0,0">
                                     <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <Grid Grid.Row="0">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="磁盘" FontFamily="{StaticResource UiFont}" FontSize="10"
-                                                           Foreground="{DynamicResource SecondaryTextBrush}" />
-                                                <TextBlock Text="{Binding DiskText}" FontFamily="{StaticResource UiFont}"
-                                                           FontSize="11.5" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource PrimaryTextBrush}" Margin="6,0,0,0" />
-                                            </StackPanel>
-                                            <Polyline Points="{Binding DiskHistoryPoints}" Stretch="None"
-                                                      Stroke="{DynamicResource AccentBrush}" StrokeThickness="1"
-                                                      Width="52" Height="16" Opacity="0.8"
-                                                      HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                        </Grid>
-                                        <Border x:Name="DiskTrack" Grid.Row="1" Height="4" CornerRadius="2"
-                                                Background="{DynamicResource TrackBrush}" Margin="0,5,0,0"
-                                                VerticalAlignment="Bottom">
-                                            <Border HorizontalAlignment="Left" CornerRadius="2"
-                                                    Background="{Binding DiskRatio, Converter={StaticResource RatioToBrush}}">
-                                                <Border.Width>
-                                                    <MultiBinding Converter="{StaticResource RatioToWidth}">
-                                                        <Binding Path="DiskRatio" />
-                                                        <Binding ElementName="DiskTrack" Path="ActualWidth" />
-                                                    </MultiBinding>
-                                                </Border.Width>
-                                            </Border>
-                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="磁盘" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding DiskText}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="17" FontWeight="SemiBold" Margin="0,1,0,0"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        </StackPanel>
+                                        <Polyline Points="{Binding DiskHistoryPoints}" Stretch="None"
+                                                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.2"
+                                                  Width="88" Height="22" Opacity="0.85"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
                                     </Grid>
@@ -1229,13 +1186,13 @@
                                         </ItemsControl>
                                     </Grid>
 
-                                    <!-- 低透明度细分割线：内容卡背景去掉后，
-                                         0.55 的白线太抢眼，压到 0.22 只作分栏暗示 -->
-                                    <Border Grid.Column="1" Width="1" Background="{DynamicResource DividerBrush}"
-                                            Opacity="0.22" Margin="11,4,0,4" />
+                                    <!-- 右栏用一块极淡底衬托，替代原先那条孤零零的竖线：
+                                         去内容卡后 1px 白线成为画面里唯一的硬边，淡底色块更融 -->
+                                    <Border Grid.Column="1" Grid.ColumnSpan="2" CornerRadius="10" Opacity="0.55"
+                                            Background="{DynamicResource ControlBrush}" Margin="8,6,0,6" />
 
                                     <!-- ===== 右：日期详情 ===== -->
-                                    <Grid Grid.Column="2" Margin="11,0,0,0">
+                                    <Grid Grid.Column="2" Margin="17,10,10,10">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="*" />

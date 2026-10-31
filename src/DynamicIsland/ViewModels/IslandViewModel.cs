@@ -397,6 +397,28 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _weatherDetail, value);
     }
 
+    // 天气页右侧三列指标：拆开单给，比一整行「体感 28° · 湿度 66% · 风 22 km/h」更好对齐
+    private string _weatherFeelsLike = string.Empty;
+    public string WeatherFeelsLike
+    {
+        get => _weatherFeelsLike;
+        private set => SetProperty(ref _weatherFeelsLike, value);
+    }
+
+    private string _weatherHumidity = string.Empty;
+    public string WeatherHumidity
+    {
+        get => _weatherHumidity;
+        private set => SetProperty(ref _weatherHumidity, value);
+    }
+
+    private string _weatherWind = string.Empty;
+    public string WeatherWind
+    {
+        get => _weatherWind;
+        private set => SetProperty(ref _weatherWind, value);
+    }
+
     private string[] _weatherForecastParts = System.Array.Empty<string>();
     /// <summary>三日预报分段：每段两行「M/d 描述 / 最低~最高°」，供三列小卡排版。</summary>
     public string[] WeatherForecastParts
@@ -1105,6 +1127,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                 WeatherDescription = info.Description;
                 WeatherLocation = info.LocationName;
                 WeatherDetail = $"体感 {info.FeelsLike:F0}° · 湿度 {info.Humidity}% · 风 {info.WindSpeed:F0} km/h";
+                WeatherFeelsLike = $"{info.FeelsLike:F0}°";
+                WeatherHumidity = $"{info.Humidity}%";
+                WeatherWind = $"{info.WindSpeed:F0}";
                 WeatherForecast = string.Join("   ",
                     info.Daily.Take(3).Select(d =>
                         $"{d.Date:M/d} {d.Description} {d.MinTemperature:F0}~{d.MaxTemperature:F0}°"));
@@ -1178,7 +1203,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>把 0-1 的采样序列映射成 52×16 的折线坐标。</summary>
+    /// <summary>把 0-1 的采样序列映射成 88×22 的折线坐标。</summary>
     private static PointCollection BuildPoints(Queue<double> queue)
     {
         var points = new PointCollection();
@@ -1187,8 +1212,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             return points;
         }
 
-        const double width = 52;
-        const double height = 16;
+        const double width = 88;
+        const double height = 22;
         double step = queue.Count > 1 ? width / (queue.Count - 1) : 0;
         int index = 0;
         foreach (double value in queue)
