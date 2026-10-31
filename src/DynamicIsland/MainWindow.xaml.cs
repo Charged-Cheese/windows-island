@@ -1326,44 +1326,71 @@ public partial class MainWindow : Window
         RecomputeState();
     }
 
-    // 滚轮一格 = 120 单位（Windows 的 WHEEL_DELTA）。触控板的小步会先攒够一格，
-    // 攒满才发一次翻页请求——不是把多次事件合并掉，而是把"不足一格的碎步"归一化。
-    private const int WheelNotchDelta = 120;
+    // 滚轮触发阈值。鼠标一格是 120（WHEEL_DELTA），但触控板一次滑动会被拆成很多
+    // 小 delta（常见 ±1~±10），所以阈值取 60：鼠标一格必然过线，触控板攒两次也过线。
+    private const int WheelTriggerDelta = 60;
 
-    // 一次事件里最多折算 3 格（鼠标滚轮通常一格一事件；触控板惯性可能一次报很大）。
-    private const int WheelMaxNotches = 3;
+    // 两次 wheel 事件间隔超过这个值就算"新手势"；否则算同一次连续滚动
+    // （触控板一整段滑动、鼠标快速连滚几格都会落在同一个手势里）。
+    private const int WheelGestureGapMs = 250;
+
+    // 动画结束后的额外保护时间：这段时间内的滚轮事件一律丢弃，避免"动画刚播完
+    // 又被上一次滚动的余波推着翻下一页"。
+    private const int WheelAfterAnimGuardMs = 150;
 
     private int _wheelAccum;
+    private DateTime _lastWheelAt = DateTime.MinValue;
+    private bool _wheelGestureFired;
+    private DateTime _tabUnlockedAt = DateTime.MinValue;
     private DateTime _lastTabTransition = DateTime.MinValue;
     private bool _shadowFaded;
 
     /// <summary>岛体阴影的基准不透明度（与 MainWindow.xaml 里 DropShadowEffect 的 Opacity 一致）。</summary>
     private const double IslandShadowOpacity = 0.38;
 
+    /// <summary>
+    /// 滚轮入口（岛体 MouseWheel 与列表 ScrollViewer 的 PreviewMouseWheel 都汇到这里）。
+    ///
+    /// 规则（一次有效滚动手势最多翻一页）：
+    /// 1. 距上一次 wheel 超过 250ms = 新手势，清掉遗留的累积值与"已触发"标记；
+    /// 2. 同一手势里已经翻过页 → 后续事件全部丢弃（不排队、不补翻）；
+    /// 3. 动画期间 / 动画结束后 150ms 保护期内 → 丢弃；
+    /// 4. 只有累积跨过 WheelTriggerDelta 且方向明确时，才发出**一次**单页请求。
+    /// 不再把 delta 折算成多页，也不把事件放进队列等待播放。
+    /// </summary>
     private void HandleWheel(int delta)
     {
         // 展开态滚轮切页（与右侧分页点同一套页面），折叠态仍调音量。
         if (_state == IslandState.Expanded)
         {
-            _wheelAccum += delta;
+            DateTime now = DateTime.UtcNow;
+            bool newGesture = (now - _lastWheelAt).TotalMilliseconds > WheelGestureGapMs;
+            _lastWheelAt = now;
 
-            int notches = _wheelAccum / WheelNotchDelta;
-            if (notches == 0)
+            if (newGesture)
+            {
+                _wheelGestureFired = false;
+                _wheelAccum = 0;
+            }
+
+            // 同一手势里翻过一次就够了；动画中与保护期内的输入一律丢弃。
+            if (_wheelGestureFired || _tabAnimating || now < _tabUnlockedAt)
+            {
+                _wheelAccum = 0;
+                return;
+            }
+
+            _wheelAccum += delta;
+            if (Math.Abs(_wheelAccum) < WheelTriggerDelta)
             {
                 return;
             }
 
-            _wheelAccum -= notches * WheelNotchDelta;
-
             // 向上滚（正）= 上一页，向下滚（负）= 下一页。
-            // 每次请求只走一页；多格也只是多排几次队，由队列串行播放，绝不直接跳页。
-            int dir = notches > 0 ? -1 : 1;
-            int count = Math.Min(Math.Abs(notches), WheelMaxNotches);
-            for (int i = 0; i < count; i++)
-            {
-                RequestTabStep(dir);
-            }
-
+            int dir = _wheelAccum > 0 ? -1 : 1;
+            _wheelAccum = 0;
+            _wheelGestureFired = true;
+            RequestWheelStep(dir);
             return;
         }
 
@@ -1373,43 +1400,19 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 滚轮/键盘：请求往相邻页走一步。动画没播完就排队，永远只差一页。
-    /// 反方向滚动时把还没播的排队清掉，立刻往反方向翻——否则"往前两页再往后一页"
-    /// 会出现先往右跳两格再回来的怪动作。
+    /// 滚轮专用：直接播一页，不经过队列。到边界就停（本次手势也不再重试），
+    /// 动画期间来不了这里——HandleWheel 已经挡掉。
     /// </summary>
-    private void RequestTabStep(int step)
+    private void RequestWheelStep(int dir)
     {
-        if (step == 0)
+        int current = (int)Math.Round(_tabAnimating ? _tabAnimTo : _tabPosition);
+        int next = Math.Clamp(current + dir, 0, _tabPages.Length - 1);
+        if (next == current)
         {
             return;
         }
 
-        // 基准点：动画进行中时，逻辑上已经站在「本步的目标页」上，
-        // 用 _tabAnimTo 而不是 Round(_tabPosition)（后者在动画前 100ms 会少算一页）。
-        int basePos = (int)Math.Round(_tabAnimating ? _tabAnimTo : _tabPosition);
-        int last = _tabQueue.Count > 0 ? _tabQueue[^1] : basePos;
-        int target = Math.Clamp(last + step, 0, _tabPages.Length - 1);
-        if (target == last)
-        {
-            return;
-        }
-
-        if (_tabQueue.Count > 0)
-        {
-            int queuedDir = Math.Sign(last - basePos);
-            if (queuedDir != 0 && Math.Sign(step) != queuedDir)
-            {
-                _tabQueue.Clear();
-                last = basePos;
-                target = Math.Clamp(last + step, 0, _tabPages.Length - 1);
-                if (target == last)
-                {
-                    return;
-                }
-            }
-        }
-
-        EnqueueTab(target);
+        StartTabStep(next);
     }
 
     /// <summary>
@@ -2385,6 +2388,10 @@ public partial class MainWindow : Window
     private void FinishTabStep()
     {
         _tabAnimating = false;
+
+        // 动画刚结束的 150ms 内不接受滚轮：这是"滚动停止后不再自己往后走"的保险，
+        // 也是触控板惯性尾巴不会把页面接着推下去的原因。
+        _tabUnlockedAt = DateTime.UtcNow.AddMilliseconds(WheelAfterAnimGuardMs);
 
         if (_tabQueue.Count > 0)
         {
