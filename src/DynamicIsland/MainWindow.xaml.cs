@@ -354,14 +354,14 @@ public partial class MainWindow : Window
         string style = _viewModel.Settings.AnimationStyle;
         _spring.ApplyStyle(style);
 
-        // 翻页整体放慢约 40%：刚度乘 0.51、阻尼乘 0.71（两者一起放，阻尼比不变，
-        // 手感形状还是原来那一档，只是过程更长、更从容）。
+        // 翻页要跟手：弹簧回到原速，刚度和阻尼都按风格给，不做额外放慢。
+        // 尺寸弹簧（岛体宽高）另有一套、更软，页面切换快、岛体变形慢，两者解耦。
         (_tabStiffness, _tabDamping) = style switch
         {
-            "smooth" => (155.0, 32.5),
-            "bouncy" => (168.0, 16.5),
-            "snappy" => (230.0, 29.5),
-            _ => (155.0, 24.0)
+            "smooth" => (300.0, 45.5),
+            "bouncy" => (330.0, 23.1),
+            "snappy" => (450.0, 41.3),
+            _ => (300.0, 33.0)
         };
     }
 
@@ -1323,11 +1323,16 @@ public partial class MainWindow : Window
     }
 
     // 滚轮累积：一格 = 100（鼠标一格是 120，触控板小步累积到 100 也算一格）
-    private const int WheelStepThreshold = 100;
+    // 滚轮一格 = 120 单位（Windows 的 WHEEL_DELTA）。按格数翻页而不是固定 +1，
+    // 系统把连续几格合并成一个事件时（快速滚），才不会只翻一页。
+    private const int WheelNotchDelta = 120;
 
-    // 每页最短间隔：弹簧 155/24 的主段约 300ms、420ms 基本收敛，这个窗口内不再翻页，
-    // 确保每一页的动画都完整走完（截断弹簧会让高度和位移同时跳一下）。
-    private const int WheelNavCooldown = 420;
+    // 单次事件最多翻 3 页，避免一口气转十几格时从媒体直接飞到日历。
+    private const int WheelMaxNotches = 3;
+
+    // 只留 40ms 防抖（一颗滚轮齿不可能这么快连发两次）；
+    // 冷却期内攒下的格数不丢，冷却结束补翻。
+    private const int WheelNavCooldown = 40;
     private int _wheelAccum;
     private int _wheelPendingStep;
     private DateTime _lastWheelNav = DateTime.MinValue;
@@ -1343,21 +1348,24 @@ public partial class MainWindow : Window
         // 展开态滚轮切页（与右侧分页点同一套页面），折叠态仍调音量。
         if (_state == IslandState.Expanded)
         {
-            // 累积到一格再翻页：以前每个 wheel 事件都直接 ±1 页，快速滚一下会连跳三四页。
+            // 按格数翻页：一次滚动几格就翻几页（上限 3 页）。
             _wheelAccum += delta;
-            if (Math.Abs(_wheelAccum) < WheelStepThreshold)
+
+            int notches = _wheelAccum / WheelNotchDelta;
+            if (notches == 0)
             {
                 return;
             }
+            _wheelAccum -= notches * WheelNotchDelta;
 
-            int step = _wheelAccum > 0 ? -1 : 1;
-            _wheelAccum = 0;
+            // 向上滚（正）是上一页，向下滚（负）是下一页
+            int step = Math.Clamp(-notches, -WheelMaxNotches, WheelMaxNotches);
 
             var now = DateTime.UtcNow;
             if ((now - _lastWheelNav).TotalMilliseconds < WheelNavCooldown)
             {
-                // 冷却期内不再丢滚量：记下方向，冷却结束时补翻一页。
-                _wheelPendingStep = step;
+                // 冷却期内不丢格数：攒起来，冷却结束一次补翻。
+                _wheelPendingStep = Math.Clamp(_wheelPendingStep + step, -WheelMaxNotches, WheelMaxNotches);
                 _wheelCooldownTimer?.Stop();
                 _wheelCooldownTimer?.Start();
                 return;
@@ -2203,18 +2211,14 @@ public partial class MainWindow : Window
         double target = Math.Clamp(index, 0, _tabPages.Length - 1);
         _tabTarget = target;
 
-        // 快速连滚（距上次切页不到 220ms）时上一段弹簧还没停就换了目标，
-        // 中间页会依次闪一下；这种场景直接落位 + 短淡入更干净。
-        double sinceLast = (DateTime.UtcNow - _lastTabTransition).TotalMilliseconds;
         _lastTabTransition = DateTime.UtcNow;
-        bool rapid = sinceLast < 220;
 
         BeginTabTransitionVisual();
         ApplyTabTransition();
 
         // 跨多页（例如日历 5 → 媒体 0）：如果还走"连续位置弹簧"，中间会依次闪过
         // 天气、硬件、图标坞……实测肉眼可见。这种跳转直接落位，只保留尺寸弹簧。
-        if (Math.Abs(_tabPosition - target) > 1.001 || rapid)
+        if (Math.Abs(_tabPosition - target) > 1.001)
         {
             if (_tabAnimating)
             {
@@ -2228,7 +2232,7 @@ public partial class MainWindow : Window
 
             // 直接落位没有"滑入"，补一次短淡入，避免内容硬切
             FrameworkElement page = _tabPages[(int)target];
-            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(rapid ? 150 : 220))
+            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
                 // 结束后恢复 ApplyTabTransition 写入的基础值；不使用 Completed
@@ -2238,7 +2242,14 @@ public partial class MainWindow : Window
             page.BeginAnimation(UIElement.OpacityProperty, fade);
 
             // 硬落位没有弹簧收敛帧可等，用一次性延时把阴影挂回去
-            ScheduleEndTabTransitionVisual(TimeSpan.FromMilliseconds(rapid ? 140 : 220));
+            ScheduleEndTabTransitionVisual(TimeSpan.FromMilliseconds(220));
+            return;
+        }
+
+        // 动画还没停就又要切页：不改位置、只改目标，让弹簧继续追。
+        // 连滚时页面是连续滑过去的，不硬落位也不会丢输入——丢输入才是"不跟手"的根源。
+        if (_tabAnimating)
+        {
             return;
         }
 
