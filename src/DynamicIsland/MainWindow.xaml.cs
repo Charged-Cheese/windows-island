@@ -239,6 +239,10 @@ public partial class MainWindow : Window
         _spectrumTimer.Tick += (_, _) => UpdateSpectrum();
         _spectrumTimer.Start();
 
+        // 滚轮冷却结束时把冷却期内攒下的那一页补上，避免"滚了没动"
+        _wheelCooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(WheelNavCooldown) };
+        _wheelCooldownTimer.Tick += FlushWheelNavigation;
+
         _viewModel.NotificationArrived += OnNotificationArrived;
         _viewModel.NotificationArrived += (_, _) => Dispatcher.BeginInvoke(UpdateIslandHitRect);
         _viewModel.SystemAlertRequested += OnSystemAlertRequested;
@@ -1318,45 +1322,81 @@ public partial class MainWindow : Window
 
     // 滚轮累积：一格 = 100（鼠标一格是 120，触控板小步累积到 100 也算一格）
     private const int WheelStepThreshold = 100;
-    private const int WheelNavCooldown = 130;
+    private const int WheelNavCooldown = 70;    // 原 130：冷却太长，快速连滚会丢拍
     private int _wheelAccum;
+    private int _wheelPendingStep;
     private DateTime _lastWheelNav = DateTime.MinValue;
+    private DateTime _lastTabTransition = DateTime.MinValue;
+    private DispatcherTimer? _wheelCooldownTimer;
+    private bool _shadowFaded;
+
+    /// <summary>岛体阴影的基准不透明度（与 MainWindow.xaml 里 DropShadowEffect 的 Opacity 一致）。</summary>
+    private const double IslandShadowOpacity = 0.40;
 
     private void HandleWheel(int delta)
     {
-        // 展开态滚轮切页（与右侧分页点同一套 8 个页面），折叠态仍调音量。
+        // 展开态滚轮切页（与右侧分页点同一套页面），折叠态仍调音量。
         if (_state == IslandState.Expanded)
         {
-            // 累积到一格再翻页，并给翻页动画留出时间：
-            // 以前每个 wheel 事件都直接 ±1 页，快速滚一下会连跳三四页。
+            // 累积到一格再翻页：以前每个 wheel 事件都直接 ±1 页，快速滚一下会连跳三四页。
             _wheelAccum += delta;
-            var now = DateTime.UtcNow;
-            if (Math.Abs(_wheelAccum) < WheelStepThreshold
-                || (now - _lastWheelNav).TotalMilliseconds < WheelNavCooldown)
+            if (Math.Abs(_wheelAccum) < WheelStepThreshold)
             {
                 return;
             }
 
             int step = _wheelAccum > 0 ? -1 : 1;
             _wheelAccum = 0;
-            _lastWheelNav = now;
 
-            int next = Math.Clamp(_viewModel.ActiveTab + step, 0, 5);
-            if (next != _viewModel.ActiveTab)
+            var now = DateTime.UtcNow;
+            if ((now - _lastWheelNav).TotalMilliseconds < WheelNavCooldown)
             {
-                _viewModel.ActiveTab = next;
-                if (next == 4)
-                {
-                    _viewModel.SyncNotificationHistory();
-                }
+                // 冷却期内不再丢滚量：记下方向，冷却结束时补翻一页。
+                _wheelPendingStep = step;
+                _wheelCooldownTimer?.Stop();
+                _wheelCooldownTimer?.Start();
+                return;
             }
 
+            NavigateTab(step, now);
             return;
         }
 
         float volumeStep = (float)Math.Clamp(_viewModel.Settings.VolumeStep, 0.01, 0.2);
         _viewModel.ChangeVolumeBy(delta > 0 ? volumeStep : -volumeStep);
         ShowVolumeHud();
+    }
+
+    private void NavigateTab(int step, DateTime now)
+    {
+        _lastWheelNav = now;
+        _wheelPendingStep = 0;
+
+        int next = Math.Clamp(_viewModel.ActiveTab + step, 0, 5);
+        if (next == _viewModel.ActiveTab)
+        {
+            return;
+        }
+
+        _viewModel.ActiveTab = next;
+        if (next == 4)
+        {
+            _viewModel.SyncNotificationHistory();
+        }
+    }
+
+    private void FlushWheelNavigation(object? sender, EventArgs e)
+    {
+        _wheelCooldownTimer?.Stop();
+
+        int step = _wheelPendingStep;
+        _wheelPendingStep = 0;
+        if (step == 0 || _state != IslandState.Expanded)
+        {
+            return;
+        }
+
+        NavigateTab(step, DateTime.UtcNow);
     }
 
     private void Island_MouseEnter(object sender, MouseEventArgs e)
@@ -2084,6 +2124,68 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 切页瞬间把岛体阴影淡出，而不是直接摘掉：新页从 Collapsed 变 Visible 会触发
+    /// 整棵页 measure/arrange，阴影跟着每帧重算高斯是掉帧来源之一；但硬摘/硬挂会让
+    /// 岛周围一明一暗，快速连滚时肉眼就是闪烁，所以这里一律走透明度过渡。
+    /// </summary>
+    private void BeginTabTransitionVisual()
+    {
+        if (Island.Effect is not System.Windows.Media.Effects.DropShadowEffect shadow)
+        {
+            return;
+        }
+
+        _shadowFaded = true;
+        shadow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, null);
+        var fadeOut = new DoubleAnimation(shadow.Opacity, 0, TimeSpan.FromMilliseconds(160))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.HoldEnd
+        };
+        shadow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, fadeOut);
+    }
+
+    private void EndTabTransitionVisual()
+    {
+        if (!_shadowFaded || Island.Effect is not System.Windows.Media.Effects.DropShadowEffect shadow)
+        {
+            return;
+        }
+
+        // 连滚还没停：再等一轮。否则阴影刚亮起来又被下一格淡出，就是用户看到的"闪烁"。
+        if ((DateTime.UtcNow - _lastTabTransition).TotalMilliseconds < 240)
+        {
+            ScheduleEndTabTransitionVisual(TimeSpan.FromMilliseconds(240));
+            return;
+        }
+
+        _shadowFaded = false;
+        // 动画结束回到 base 值（XAML 里的 0.40），不需要手动写 Opacity
+        var fadeIn = new DoubleAnimation(0, IslandShadowOpacity, TimeSpan.FromMilliseconds(280))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.Stop
+        };
+        shadow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, fadeIn);
+    }
+
+    private void ScheduleEndTabTransitionVisual(TimeSpan delay)
+    {
+        if (!_shadowFaded)
+        {
+            return;
+        }
+
+        var timer = new DispatcherTimer { Interval = delay };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            EndTabTransitionVisual();
+        };
+        timer.Start();
+    }
+
     private void StartTabTransition(int index)
     {
         // 淡入动画会覆盖 Opacity 的本地值。切页前移除旧时钟，
@@ -2095,11 +2197,19 @@ public partial class MainWindow : Window
 
         double target = Math.Clamp(index, 0, _tabPages.Length - 1);
         _tabTarget = target;
+
+        // 快速连滚（距上次切页不到 220ms）时上一段弹簧还没停就换了目标，
+        // 中间页会依次闪一下；这种场景直接落位 + 短淡入更干净。
+        double sinceLast = (DateTime.UtcNow - _lastTabTransition).TotalMilliseconds;
+        _lastTabTransition = DateTime.UtcNow;
+        bool rapid = sinceLast < 220;
+
+        BeginTabTransitionVisual();
         ApplyTabTransition();
 
-        // 跨多页（例如日历 7 → 媒体 0）：如果还走"连续位置弹簧"，中间会依次闪过
+        // 跨多页（例如日历 5 → 媒体 0）：如果还走"连续位置弹簧"，中间会依次闪过
         // 天气、硬件、图标坞……实测肉眼可见。这种跳转直接落位，只保留尺寸弹簧。
-        if (Math.Abs(_tabPosition - target) > 1.001)
+        if (Math.Abs(_tabPosition - target) > 1.001 || rapid)
         {
             if (_tabAnimating)
             {
@@ -2113,7 +2223,7 @@ public partial class MainWindow : Window
 
             // 直接落位没有"滑入"，补一次短淡入，避免内容硬切
             FrameworkElement page = _tabPages[(int)target];
-            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
+            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(rapid ? 120 : 180))
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
                 // 结束后恢复 ApplyTabTransition 写入的基础值；不使用 Completed
@@ -2121,6 +2231,9 @@ public partial class MainWindow : Window
                 FillBehavior = FillBehavior.Stop
             };
             page.BeginAnimation(UIElement.OpacityProperty, fade);
+
+            // 硬落位没有弹簧收敛帧可等，用一次性延时把阴影挂回去
+            ScheduleEndTabTransitionVisual(TimeSpan.FromMilliseconds(rapid ? 140 : 220));
             return;
         }
 
@@ -2134,6 +2247,7 @@ public partial class MainWindow : Window
             _tabPosition = target;
             _tabVelocity = 0;
             ApplyTabTransition();
+            EndTabTransitionVisual();
             return;
         }
 
@@ -2191,6 +2305,7 @@ public partial class MainWindow : Window
             ApplyTabTransition();
             _tabAnimating = false;
             CompositionTarget.Rendering -= OnTabRendering;
+            EndTabTransitionVisual();
         }
     }
 

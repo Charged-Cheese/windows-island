@@ -36,6 +36,10 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _fastTimer;
     private readonly DispatcherTimer _clockTimer;
     private readonly DispatcherTimer _launcherErrorTimer;
+    private readonly DispatcherTimer _notificationPruneTimer;
+
+    /// <summary>手动清空通知时的时间水位：早于它的通知不再从数据库回填。</summary>
+    private DateTimeOffset _notificationClearAt = DateTimeOffset.MinValue;
     private string _launcherErrorText = string.Empty;
     private bool _hasLauncherError;
 
@@ -71,6 +75,12 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             HasLauncherError = false;
             LauncherErrorText = string.Empty;
         };
+
+        // 通知自动清理：每分钟检查一次条龄，间隔与保留时长解耦，
+        // 用户改「保留 5 分钟」也能在一分钟内看到旧条目消失。
+        _notificationPruneTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        _notificationPruneTimer.Tick += (_, _) => PruneNotifications();
+        _notificationPruneTimer.Start();
 
         _launcher.LaunchFailed += OnLauncherLaunchFailed;
 
@@ -1502,6 +1512,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(PrivacyVisible));
         OnPropertyChanged(nameof(ShowPillClock));
         OnPropertyChanged(nameof(ShowClockInPill));
+        PruneNotifications();
         NotifyCollapsedTextChanged();
         SettingsApplied?.Invoke();
     }
@@ -1896,26 +1907,84 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     /// <summary>清空通知列表（数据库本身只读，只清界面与内存历史）。</summary>
     public void ClearNotifications()
     {
+        // 记下水位的意义：数据库是只读的，界面清空后如果只依赖「列表为空」这个条件，
+        // 下次切回通知页 SyncNotificationHistory 会把 20 条旧通知原样拉回来。
+        _notificationClearAt = DateTimeOffset.Now;
         Notifications.Clear();
         _notifications.History.Clear();
         NotificationCount = 0;
+        RaiseDynamicPanels();
+    }
+
+    /// <summary>按条龄清理旧通知（设置里的「通知保留时长」，0 表示关闭）。</summary>
+    public void PruneNotifications()
+    {
+        int minutes = Settings.NotificationRetentionMinutes;
+        if (minutes <= 0 || Notifications.Count == 0)
+        {
+            return;
+        }
+
+        DateTimeOffset cutoff = DateTimeOffset.Now.AddMinutes(-minutes);
+        bool removed = false;
+        for (int i = Notifications.Count - 1; i >= 0; i--)
+        {
+            if (Notifications[i].Item.ReceivedAt >= cutoff)
+            {
+                continue;
+            }
+
+            Notifications.RemoveAt(i);
+            removed = true;
+        }
+
+        if (!removed)
+        {
+            return;
+        }
+
+        NotificationCount = Notifications.Count;
+        RaiseDynamicPanels();
     }
 
     /// <summary>从数据库同步历史通知（展开通知页时调用）。</summary>
     public void SyncNotificationHistory()
     {
-        if (Notifications.Count > 0)
+        int minutes = Settings.NotificationRetentionMinutes;
+        DateTimeOffset cutoff = minutes > 0
+            ? DateTimeOffset.Now.AddMinutes(-minutes)
+            : DateTimeOffset.MinValue;
+
+        var known = new HashSet<uint>();
+        foreach (NotificationEntryViewModel entry in Notifications)
         {
-            return;
+            known.Add(entry.Item.Id);
         }
 
-        foreach (var item in _notifications.GetExisting(20))
+        bool added = false;
+        foreach (NotificationItem item in _notifications.GetExisting(20))
         {
-            var entry = new NotificationEntryViewModel(item);
-            Notifications.Add(entry);
+            // 两道过滤：手动清空的水位线、自动清理的条龄；再按 Id 去重，
+            // 这样既不会复活已清空的内容，也不会在已有列表上反复插入重复项。
+            if (item.ReceivedAt <= _notificationClearAt || item.ReceivedAt < cutoff)
+            {
+                continue;
+            }
+
+            if (!known.Add(item.Id))
+            {
+                continue;
+            }
+
+            Notifications.Add(new NotificationEntryViewModel(item));
+            added = true;
         }
 
-        NotificationCount = Notifications.Count;
+        if (added)
+        {
+            NotificationCount = Notifications.Count;
+            RaiseDynamicPanels();
+        }
     }
 
     // ---------------- 工具 ----------------
@@ -1983,6 +2052,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         _fastTimer.Stop();
         _clockTimer.Stop();
         _launcherErrorTimer.Stop();
+        _notificationPruneTimer.Stop();
         _launcher.LaunchFailed -= OnLauncherLaunchFailed;
         _media.TrackChanged -= OnTrackChanged;
         _media.Updated -= OnMediaUpdated;

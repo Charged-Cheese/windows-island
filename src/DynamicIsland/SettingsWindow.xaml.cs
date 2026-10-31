@@ -63,6 +63,16 @@ public partial class SettingsWindow : Window
         SetToggle(MotionCheckBouncy, motion == "bouncy");
         SetToggle(MotionCheckSnappy, motion == "snappy");
 
+        int retention = Settings.NotificationRetentionMinutes;
+        SetToggle(RetentionCheck15, retention == 15);
+        SetToggle(RetentionCheck60, retention == 60);
+        SetToggle(RetentionCheck180, retention == 180);
+        SetToggle(RetentionCheck1440, retention == 1440);
+        SetToggle(RetentionCheckOff, retention <= 0);
+        RetentionHint.Text = retention <= 0
+            ? "不自动清理；手动清空后不会再回填旧通知"
+            : $"超过 {retention} 分钟的通知自动消失；手动清空后也不再回填旧通知";
+
         LyricOffsetText.Text = $"{(int)Settings.LyricsOffsetMs} ms";
         VolumeStepText.Text = $"{Math.Round(Settings.VolumeStep * 100):0}%";
 
@@ -121,6 +131,20 @@ public partial class SettingsWindow : Window
 
         Settings.AnimationStyle = id;
         // ApplySettings 会触发 SettingsApplied，主窗口据此刷新弹簧参数
+        _viewModel.ApplySettings();
+        RefreshUI();
+    }
+
+    private void Retention_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not FrameworkElement { Tag: string tag } || !int.TryParse(tag, out int minutes))
+        {
+            return;
+        }
+
+        Settings.NotificationRetentionMinutes = minutes;
+        // ApplySettings 内部会 Save 并立刻跑一次 PruneNotifications，改完马上能看到旧条目消失
         _viewModel.ApplySettings();
         RefreshUI();
     }

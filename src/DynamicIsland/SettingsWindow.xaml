@@ -321,6 +321,52 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- 通知保留 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="通知保留" />
+                    <Border Style="{StaticResource Card}" Padding="10,10,6,4">
+                        <StackPanel>
+                            <WrapPanel>
+                                <Border Style="{StaticResource ChipBorder}" Tag="15" MouseLeftButtonUp="Retention_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="RetentionCheck15" Text="✓" FontSize="11" Margin="0,0,4,0"
+                                                   Foreground="{DynamicResource AccentBrush}" Visibility="Collapsed" />
+                                        <TextBlock Text="15 分钟" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="60" MouseLeftButtonUp="Retention_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="RetentionCheck60" Text="✓" FontSize="11" Margin="0,0,4,0"
+                                                   Foreground="{DynamicResource AccentBrush}" Visibility="Collapsed" />
+                                        <TextBlock Text="1 小时" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="180" MouseLeftButtonUp="Retention_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="RetentionCheck180" Text="✓" FontSize="11" Margin="0,0,4,0"
+                                                   Foreground="{DynamicResource AccentBrush}" Visibility="Collapsed" />
+                                        <TextBlock Text="3 小时" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="1440" MouseLeftButtonUp="Retention_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="RetentionCheck1440" Text="✓" FontSize="11" Margin="0,0,4,0"
+                                                   Foreground="{DynamicResource AccentBrush}" Visibility="Collapsed" />
+                                        <TextBlock Text="1 天" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource ChipBorder}" Tag="0" MouseLeftButtonUp="Retention_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="RetentionCheckOff" Text="✓" FontSize="11" Margin="0,0,4,0"
+                                                   Foreground="{DynamicResource AccentBrush}" Visibility="Collapsed" />
+                                        <TextBlock Text="不清理" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </StackPanel>
+                                </Border>
+                            </WrapPanel>
+                            <TextBlock x:Name="RetentionHint" FontSize="10" Margin="2,2,6,6" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TertiaryTextBrush}" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- 天气 -->
                     <TextBlock Style="{StaticResource SectionTitle}" Text="天气与位置" />
                     <Border Style="{StaticResource Card}" Padding="10,10,6,4">

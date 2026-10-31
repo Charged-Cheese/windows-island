@@ -103,6 +103,9 @@ public sealed class AppSettings
     /// <summary>动画风格：default / smooth / bouncy / snappy。</summary>
     public string AnimationStyle { get; set; } = "default";
 
+    /// <summary>通知自动清理：只保留最近 N 分钟，0 表示关闭。</summary>
+    public int NotificationRetentionMinutes { get; set; } = 60;
+
     public List<LauncherItem> LauncherItems { get; set; } = new();
 }
 
