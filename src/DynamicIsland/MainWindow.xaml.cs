@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -95,7 +95,7 @@ public partial class MainWindow : Window
 
     // 媒体页的默认展开尺寸；其余页面按 TabSizes 单独给高度
     private const double ExpandedWidth = 384;
-    private const double ExpandedHeight = 188;
+    private const double ExpandedHeight = 176;
 
     private const double ExpandedRadius = 26.0;
 
@@ -155,6 +155,7 @@ public partial class MainWindow : Window
     private bool _tabAnimating;
     private double _tabStiffness = 215.0;
     private double _tabDamping = 11.0;
+    private bool _privacyPulseRunning;
 
     private IslandState _state = IslandState.Collapsed;
     private IslandState _stateBeforeNotification = IslandState.Collapsed;
@@ -164,6 +165,8 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        // 材质要先于主题落位：主题 Apply 会读 Current 材质配方发资源。
+        MaterialManager.Select(_viewModel.Settings.Material);
         ThemeManager.Apply(_viewModel.Settings.Theme);
         InitializeComponent();
 
@@ -247,6 +250,94 @@ public partial class MainWindow : Window
 
         // 设置面板里改动画风格后即时生效
         _viewModel.SettingsApplied += ApplyMotionStyle;
+
+        AttachHoverFeedback();
+    }
+
+    // ---------------- 指针反馈 ----------------
+    // 岛内可点元素（Cursor=Hand 的小 Border）统一获得「悬停微放大 / 按下回弹」，
+    // 不必逐个 XAML 加触发器。大块区域（折叠胶囊、列表行）不参与，
+    // 否则整块内容会跟着鼠标晃。
+
+    private const double PointerHoverScale = 1.15;
+    private FrameworkElement? _pointerTarget;
+
+    // 被我们接管过 RenderTransform 的元素：分页点自己带 ScaleTransform（胶囊拉伸），
+    // 不能碰；只认「默认 Identity」或「我们创建过的」。
+    private readonly HashSet<FrameworkElement> _pointerOwned = new();
+
+    private void AttachHoverFeedback()
+    {
+        PreviewMouseMove += (_, e) => UpdatePointerTarget(e.OriginalSource as DependencyObject);
+        PreviewMouseLeftButtonDown += (_, e)
+            => AnimatePointerScale(FindPointerTarget(e.OriginalSource as DependencyObject), 0.90);
+        PreviewMouseLeftButtonUp += (_, e)
+            => AnimatePointerScale(FindPointerTarget(e.OriginalSource as DependencyObject), PointerHoverScale);
+        MouseLeave += (_, _) =>
+        {
+            AnimatePointerScale(_pointerTarget, 1.0);
+            _pointerTarget = null;
+        };
+    }
+
+    private void UpdatePointerTarget(DependencyObject? source)
+    {
+        FrameworkElement? target = FindPointerTarget(source);
+        if (ReferenceEquals(target, _pointerTarget))
+        {
+            return;
+        }
+
+        AnimatePointerScale(_pointerTarget, 1.0);
+        _pointerTarget = target;
+        AnimatePointerScale(target, PointerHoverScale);
+    }
+
+    /// <summary>向上找最近的「小手光标 + 小尺寸 Border」，跳过已有自定义 RenderTransform 的元素。</summary>
+    private FrameworkElement? FindPointerTarget(DependencyObject? source)
+    {
+        while (source is not null)
+        {
+            // 注意：RenderTransform 的默认值是 Transform.Identity，不是 null，
+            // 用引用比较放行它，否则所有没有自绘变换的元素都会被漏掉。
+            if (source is Border element
+                && element.Cursor == Cursors.Hand
+                && (element.RenderTransform is null
+                    || ReferenceEquals(element.RenderTransform, Transform.Identity)
+                    || _pointerOwned.Contains(element))
+                && element.ActualWidth is > 0 and <= 64
+                && element.ActualHeight is > 0 and <= 64)
+            {
+                return element;
+            }
+
+            source = source is Visual ? VisualTreeHelper.GetParent(source) : LogicalTreeHelper.GetParent(source);
+        }
+
+        return null;
+    }
+
+    private void AnimatePointerScale(FrameworkElement? element, double scale)
+    {
+        if (element is null)
+        {
+            return;
+        }
+
+        if (element.RenderTransform is not ScaleTransform transform)
+        {
+            transform = new ScaleTransform(1, 1);
+            element.RenderTransformOrigin = new Point(0.5, 0.5);
+            element.RenderTransform = transform;
+            _pointerOwned.Add(element);
+        }
+
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(140);
+        transform.BeginAnimation(
+            ScaleTransform.ScaleXProperty, new DoubleAnimation(scale, duration) { EasingFunction = easing });
+        transform.BeginAnimation(
+            ScaleTransform.ScaleYProperty, new DoubleAnimation(scale, duration) { EasingFunction = easing });
     }
 
     public IslandViewModel ViewModel => _viewModel;
@@ -295,13 +386,21 @@ public partial class MainWindow : Window
             (height - CollapsedHeight) / (ExpandedHeight - CollapsedHeight), 0, 1);
 
         MorphCover.Visibility = Visibility.Visible;
-        MorphCover.Width = 24 + (46 - 24) * progress;
-        MorphCover.Height = MorphCover.Width;
-        MorphCover.Margin = new Thickness(
-            7 + (12 - 7) * progress,     // 折叠封面左边距 7 → 展开封面左边距 12
-            6 + (11 - 6) * progress,     // 垂直同样从 6 抬到 11
-            0,
-            0);
+
+        // 元素固定按展开尺寸布局（46×46），折叠/展开之间只改缩放和位移。
+        // 之前每帧写 Width/Height/Margin，每次都要让父 Grid 重新测量，是折叠动画里最贵的一笔。
+        double width = 24 + (46 - 24) * progress;
+        double scale = width / 46.0;
+        MorphScale.ScaleX = scale;
+        MorphScale.ScaleY = scale;
+
+        // 渲染后的圆角恒为 12：折叠时 46×46 缩到 24×24 恰好是正圆，
+        // 展开时回到 12 半径的圆角方形，形态过渡和原来一致。
+        MorphCover.CornerRadius = new CornerRadius(12 / scale);
+
+        // 折叠态左上角在 (7,6)，展开态在 (12,11)
+        MorphShift.X = -5 * (1 - progress);
+        MorphShift.Y = -5 * (1 - progress);
     }
 
     // ---------------- 生命周期 ----------------
@@ -371,9 +470,10 @@ public partial class MainWindow : Window
         LogService.Info(hotkey ? "全局快捷键已注册：Ctrl+Alt+D" : "全局快捷键注册失败（可能被占用）");
         AddClipboardFormatListener(hwnd);
         _fullscreenTimer.Start();
-        StartPrivacyPulse();
+        UpdatePrivacyPulse();
 
         _ = InitializeServicesAsync();
+        FrameProbe.StartIfRequested();
     }
 
     /// <summary>隐私点的呼吸感，避免静态小圆点看起来像渲染残留。</summary>
@@ -388,6 +488,31 @@ public partial class MainWindow : Window
 
         MicDot.BeginAnimation(OpacityProperty, pulse);
         CameraDot.BeginAnimation(OpacityProperty, pulse);
+    }
+
+    /// <summary>
+    /// 只有隐私点真的出现在界面上时才跑呼吸动画。
+    /// 以前是无条件 Forever：没人录音的时候也每帧推进一次透明度，白白占着渲染节拍。
+    /// </summary>
+    private void UpdatePrivacyPulse()
+    {
+        bool visible = _viewModel.PrivacyVisible;
+        if (visible == _privacyPulseRunning)
+        {
+            return;
+        }
+
+        _privacyPulseRunning = visible;
+        if (!visible)
+        {
+            MicDot.BeginAnimation(OpacityProperty, null);
+            CameraDot.BeginAnimation(OpacityProperty, null);
+            MicDot.Opacity = 1;
+            CameraDot.Opacity = 1;
+            return;
+        }
+
+        StartPrivacyPulse();
     }
 
     private async Task InitializeServicesAsync()
@@ -1194,12 +1319,31 @@ public partial class MainWindow : Window
         RecomputeState();
     }
 
+    // 滚轮累积：一格 = 100（鼠标一格是 120，触控板小步累积到 100 也算一格）
+    private const int WheelStepThreshold = 100;
+    private const int WheelNavCooldown = 130;
+    private int _wheelAccum;
+    private DateTime _lastWheelNav = DateTime.MinValue;
+
     private void HandleWheel(int delta)
     {
-        // 展开态滚轮切页（与右侧分页点同一套 6 个页面），折叠态仍调音量。
+        // 展开态滚轮切页（与右侧分页点同一套 8 个页面），折叠态仍调音量。
         if (_state == IslandState.Expanded)
         {
-            int step = delta > 0 ? -1 : 1;
+            // 累积到一格再翻页，并给翻页动画留出时间：
+            // 以前每个 wheel 事件都直接 ±1 页，快速滚一下会连跳三四页。
+            _wheelAccum += delta;
+            var now = DateTime.UtcNow;
+            if (Math.Abs(_wheelAccum) < WheelStepThreshold
+                || (now - _lastWheelNav).TotalMilliseconds < WheelNavCooldown)
+            {
+                return;
+            }
+
+            int step = _wheelAccum > 0 ? -1 : 1;
+            _wheelAccum = 0;
+            _lastWheelNav = now;
+
             int next = Math.Clamp(_viewModel.ActiveTab + step, 0, 7);
             if (next != _viewModel.ActiveTab)
             {
@@ -1742,20 +1886,22 @@ public partial class MainWindow : Window
 
     private void PositionHuds()
     {
+        // 用 TranslateTransform 而不是 Margin：这三个浮层每帧都跟着岛高走，
+        // 改 Margin 会触发 3 次布局测量，改 RenderTransform 只重画。
         double top = _spring.Height + 10;
-        if (VolumeHud is not null)
+        if (VolumeAnchor is not null)
         {
-            VolumeHud.Margin = new Thickness(0, top, 0, 0);
+            VolumeAnchor.Y = top;
         }
 
-        if (SystemAlertHud is not null)
+        if (AlertAnchor is not null)
         {
-            SystemAlertHud.Margin = new Thickness(0, top, 0, 0);
+            AlertAnchor.Y = top;
         }
 
-        if (ClipboardHud is not null)
+        if (ClipAnchor is not null)
         {
-            ClipboardHud.Margin = new Thickness(0, top, 0, 0);
+            ClipAnchor.Y = top;
         }
     }
 
@@ -1895,6 +2041,12 @@ public partial class MainWindow : Window
             // 歌词换行 / 设置变化：只重排跑马灯。
             // 这里绝不能再播标题淡入，否则每次歌词刷新都会闪一下。
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(UpdateMarquee));
+            return;
+        }
+
+        if (e.PropertyName == nameof(IslandViewModel.PrivacyVisible))
+        {
+            UpdatePrivacyPulse();
             return;
         }
 
@@ -2052,6 +2204,25 @@ public partial class MainWindow : Window
             double offsetX = (i - _tabPosition) * 36;
 
             FrameworkElement page = _tabPages[i];
+
+            // 只有当前页和左右邻页在动。其余页彻底收起来，既省掉每帧的 8 次属性写入，
+            // 也让 WPF 不必为一个透明全尺寸子树建合成层——折叠动画期间这才是主要开销。
+            if (opacity <= 0)
+            {
+                if (page.Visibility != Visibility.Collapsed)
+                {
+                    page.Visibility = Visibility.Collapsed;
+                    page.IsHitTestVisible = false;
+                }
+
+                continue;
+            }
+
+            if (page.Visibility != Visibility.Visible)
+            {
+                page.Visibility = Visibility.Visible;
+            }
+
             page.Opacity = opacity;
             page.IsHitTestVisible = opacity > 0.55;
 
@@ -2073,7 +2244,12 @@ public partial class MainWindow : Window
             double eased = distance * distance * (3 - 2 * distance);
             double stretch = Math.Min(speed * 0.8, 3.0) * (1 - eased);
 
-            _tabDots[i].Height = 4 + 8 * (1 - eased) + stretch;
+            // 高度变化改用缩放：分页点的 Height 一改就要重新测量整个右侧竖列。
+            if (_tabDots[i].RenderTransform is ScaleTransform dotScale)
+            {
+                dotScale.ScaleY = (4 + 8 * (1 - eased) + stretch) / 4.0;
+            }
+
             _tabDots[i].Opacity = 0.25 + 0.65 * (1 - eased);
         }
     }
@@ -2296,12 +2472,17 @@ public partial class MainWindow : Window
 
         foreach (Border bar in _spectrumBars)
         {
-            double target = 5 + _random.NextDouble() * 21;
+            double target = (5 + _random.NextDouble() * 21) / 26.0;
+            if (bar.RenderTransform is not ScaleTransform scale)
+            {
+                continue;
+            }
+
             var animation = new DoubleAnimation(target, TimeSpan.FromMilliseconds(170))
             {
                 EasingFunction = new SineEase { EasingMode = EasingMode.EaseOut }
             };
-            bar.BeginAnimation(FrameworkElement.HeightProperty, animation);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, animation);
         }
     }
 
@@ -2425,6 +2606,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        FrameProbe.Stop();
         _notificationTimer.Stop();
         _autoCollapseTimer.Stop();
         _volumeHudTimer.Stop();

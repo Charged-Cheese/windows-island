@@ -35,6 +35,11 @@ public partial class SettingsWindow : Window
         ThemeCheckGraphite.Visibility = ThemeManager.CurrentId == "graphite" ? Visibility.Visible : Visibility.Collapsed;
         ThemeCheckPorcelain.Visibility = ThemeManager.CurrentId == "porcelain" ? Visibility.Visible : Visibility.Collapsed;
 
+        SetToggle(MaterialCheckClear, MaterialManager.CurrentId == "clear");
+        SetToggle(MaterialCheckGlass, MaterialManager.CurrentId == "glass");
+        SetToggle(MaterialCheckFrosted, MaterialManager.CurrentId == "frosted");
+        SetToggle(MaterialCheckSolid, MaterialManager.CurrentId == "solid");
+
         LatitudeBox.Text = Settings.Latitude.ToString("0.####", CultureInfo.InvariantCulture);
         LongitudeBox.Text = Settings.Longitude.ToString("0.####", CultureInfo.InvariantCulture);
         WeatherHintText.Text = $"当前：{Settings.CityName} · 经纬度 {Settings.Latitude:0.00}, {Settings.Longitude:0.00}";
@@ -82,6 +87,24 @@ public partial class SettingsWindow : Window
         ThemeManager.Apply(id);
         Settings.Theme = ThemeManager.CurrentId;
         _viewModel.RefreshAccent();
+        _viewModel.SaveSettings();
+        RefreshUI();
+    }
+
+    // ---------------- 材质 ----------------
+
+    private void Material_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not FrameworkElement { Tag: string id })
+        {
+            return;
+        }
+
+        // 材质只影响浓度配方，重新发一次主题资源即可让岛体/卡片即时变化。
+        MaterialManager.Select(id);
+        ThemeManager.Apply(Settings.Theme);
+        Settings.Material = MaterialManager.CurrentId;
         _viewModel.SaveSettings();
         RefreshUI();
     }

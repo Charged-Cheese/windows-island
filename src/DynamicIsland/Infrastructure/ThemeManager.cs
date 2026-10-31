@@ -113,8 +113,11 @@ public static class ThemeManager
             return;
         }
 
-        Set(resources, "IslandBgBrush", theme.Background);
-        Set(resources, "IslandBorderBrush", theme.Border);
+        // 材质（清透/玻璃/磨砂/实色）只改这几项的浓度：底色透明度、轮廓线轻重，
+        // 高光与底部内阴影在 PublishSurface 里缩放。
+        IslandMaterial material = MaterialManager.Current;
+        Set(resources, "IslandBgBrush", Tinted(theme.Background, material));
+        Set(resources, "IslandBorderBrush", ScaleAlpha(theme.Border, material.BorderScale));
         Set(resources, "PrimaryTextBrush", theme.Primary);
         Set(resources, "SecondaryTextBrush", theme.Secondary);
         Set(resources, "TertiaryTextBrush", theme.Tertiary);
@@ -136,18 +139,19 @@ public static class ThemeManager
     private static void PublishSurface(ResourceDictionary resources, IslandTheme theme)
     {
         bool light = theme.Id == "porcelain";
+        IslandMaterial material = MaterialManager.Current;
 
         var island = new LinearGradientBrush
         {
             StartPoint = new Point(0, 0),
             EndPoint = new Point(0, 1)
         };
-        island.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(light ? 0x55 : 0x3A), 0xFF, 0xFF, 0xFF), 0));
-        island.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(light ? 0x24 : 0x12), 0xFF, 0xFF, 0xFF), 0.035));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb(Scale(light ? 0x55 : 0x3A, material.Highlight), 0xFF, 0xFF, 0xFF), 0));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb(Scale(light ? 0x24 : 0x12, material.Highlight), 0xFF, 0xFF, 0xFF), 0.035));
         island.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.12));
         island.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.66));
-        island.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(light ? 0x07 : 0x0E), 0x00, 0x00, 0x00), 0.90));
-        island.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(light ? 0x12 : 0x2A), 0x00, 0x00, 0x00), 1));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb(Scale(light ? 0x07 : 0x0E, material.BottomShade), 0x00, 0x00, 0x00), 0.90));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb(Scale(light ? 0x12 : 0x2A, material.BottomShade), 0x00, 0x00, 0x00), 1));
         island.Freeze();
         resources["IslandSurfaceBrush"] = island;
 
@@ -292,4 +296,24 @@ public static class ThemeManager
         brush.Freeze();
         resources[key] = brush;
     }
+
+    /// <summary>按材质倍率缩放一个 alpha 通道（0x00–0xFF）。</summary>
+    private static byte Scale(int alpha, double factor)
+        => (byte)Math.Clamp((int)Math.Round(alpha * factor), 0, 255);
+
+    /// <summary>
+    /// 材质底色：先按 Tint 往白色混（磨砂档因此发灰白，而不是在深色桌面上
+    /// 和别的档位一样黑），再套上材质的不透明度。
+    /// </summary>
+    private static Color Tinted(Color color, IslandMaterial material)
+    {
+        double t = Math.Clamp(material.Tint, 0, 1);
+        byte r = (byte)Math.Round(color.R + (255 - color.R) * t);
+        byte g = (byte)Math.Round(color.G + (255 - color.G) * t);
+        byte b = (byte)Math.Round(color.B + (255 - color.B) * t);
+        return Color.FromArgb(Scale(0xFF, material.Opacity), r, g, b);
+    }
+
+    private static Color ScaleAlpha(Color color, double factor)
+        => Color.FromArgb(Scale(color.A, factor), color.R, color.G, color.B);
 }

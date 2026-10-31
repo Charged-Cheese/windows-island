@@ -97,6 +97,9 @@ public sealed class AppSettings
     /// <summary>外观主题：obsidian / graphite / porcelain。</summary>
     public string Theme { get; set; } = "obsidian";
 
+    /// <summary>材质：clear / glass / frosted / solid（与主题正交）。</summary>
+    public string Material { get; set; } = "glass";
+
     /// <summary>动画风格：default / smooth / bouncy / snappy。</summary>
     public string AnimationStyle { get; set; } = "default";
 

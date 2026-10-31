@@ -1,4 +1,4 @@
-﻿<Window x:Class="DynamicIsland.MainWindow"
+<Window x:Class="DynamicIsland.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="灵动岛"
@@ -133,7 +133,7 @@
                 DragLeave="Island_DragLeave"
                 Drop="Island_Drop">
             <Border.Effect>
-                <DropShadowEffect BlurRadius="40" ShadowDepth="16" Opacity="0.42" Color="#04040A" />
+                <DropShadowEffect BlurRadius="28" ShadowDepth="14" Opacity="0.40" Color="#04040A" />
             </Border.Effect>
 
             <Border.RenderTransform>
@@ -473,9 +473,11 @@
                         </Grid>
                         </Grid>
 
-                        <Border Grid.Row="1" CornerRadius="14" Background="{DynamicResource CardSurfaceBrush}"
-                                BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
-                                Padding="11,9" Margin="0,5,0,0">
+                        <!-- 内容容器：不再叠一层卡片玻璃，页面内容直接浮在岛体上。
+                             之前这里 CardSurfaceBrush + 1px 边框 = 第 5 层半透明白，
+                             叠在岛体渐变上会把内容区的对比压平。 -->
+                        <Border Grid.Row="1" CornerRadius="14" Background="Transparent"
+                                Padding="2,5,2,1" Margin="0,2,0,0">
                             <Grid ClipToBounds="True">
 
                                 <!-- 媒体页：歌词 -->
@@ -507,18 +509,44 @@
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
                                                 Visibility="{Binding HasLyrics, Converter={StaticResource InverseBoolToVis}}">
                                         <StackPanel Orientation="Horizontal" Height="26" HorizontalAlignment="Center">
-                                            <Border x:Name="Spectrum0" Width="3" Height="10" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.55" />
-                                            <Border x:Name="Spectrum1" Width="3" Height="18" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.75" />
+                                            <!-- 柱子统一按 26 布局，播放时只缩放 ScaleY：
+                                                 Height 动画每帧都要重新测量，6 根一起做在软件渲染下很亏 -->
+                                            <Border x:Name="Spectrum0" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.55" RenderTransformOrigin="0.5,1">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform ScaleY="0.38" />
+                                                </Border.RenderTransform>
+                                            </Border>
+                                            <Border x:Name="Spectrum1" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.75" RenderTransformOrigin="0.5,1">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform ScaleY="0.69" />
+                                                </Border.RenderTransform>
+                                            </Border>
                                             <Border x:Name="Spectrum2" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" />
-                                            <Border x:Name="Spectrum3" Width="3" Height="14" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.65" />
-                                            <Border x:Name="Spectrum4" Width="3" Height="20" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.85" />
-                                            <Border x:Name="Spectrum5" Width="3" Height="8" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.5" />
+                                                    VerticalAlignment="Bottom" Margin="2,0" RenderTransformOrigin="0.5,1">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform ScaleY="1" />
+                                                </Border.RenderTransform>
+                                            </Border>
+                                            <Border x:Name="Spectrum3" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.65" RenderTransformOrigin="0.5,1">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform ScaleY="0.54" />
+                                                </Border.RenderTransform>
+                                            </Border>
+                                            <Border x:Name="Spectrum4" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.85" RenderTransformOrigin="0.5,1">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform ScaleY="0.77" />
+                                                </Border.RenderTransform>
+                                            </Border>
+                                            <Border x:Name="Spectrum5" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.5" RenderTransformOrigin="0.5,1">
+                                                <Border.RenderTransform>
+                                                    <ScaleTransform ScaleY="0.31" />
+                                                </Border.RenderTransform>
+                                            </Border>
                                         </StackPanel>
                                         <TextBlock Text="暂无歌词" FontFamily="{StaticResource UiFont}" FontSize="10"
                                                    Foreground="{DynamicResource TertiaryTextBrush}"
@@ -1214,9 +1242,10 @@
                                         </ItemsControl>
                                     </Grid>
 
-                                    <!-- 低透明度细分割线 -->
+                                    <!-- 低透明度细分割线：内容卡背景去掉后，
+                                         0.55 的白线太抢眼，压到 0.22 只作分栏暗示 -->
                                     <Border Grid.Column="1" Width="1" Background="{DynamicResource DividerBrush}"
-                                            Opacity="0.55" Margin="11,4,0,4" />
+                                            Opacity="0.22" Margin="11,4,0,4" />
 
                                     <!-- ===== 右：日期详情 ===== -->
                                     <Grid Grid.Column="2" Margin="11,0,0,0">
@@ -1268,35 +1297,67 @@
                     <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,9,0">
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="0"
                                 MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator0" Width="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" />
+                            <Border x:Name="TabDotIndicator0" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                            </Border>
                         </Border>
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="1"
                                 MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator1" Width="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" />
+                            <Border x:Name="TabDotIndicator1" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                            </Border>
                         </Border>
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="2"
                                 MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator2" Width="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" />
+                            <Border x:Name="TabDotIndicator2" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                            </Border>
                         </Border>
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="3"
                                 MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator3" Width="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" />
+                            <Border x:Name="TabDotIndicator3" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                            </Border>
                         </Border>
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="4"
                                 MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator4" Width="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" />
+                            <Border x:Name="TabDotIndicator4" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                            </Border>
                         </Border>
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="5"
                                 MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator5" Width="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" />
+                            <Border x:Name="TabDotIndicator5" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                            </Border>
                         </Border>
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="6"
                                 MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator6" Width="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" />
+                            <Border x:Name="TabDotIndicator6" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                            </Border>
                         </Border>
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="7"
                                 MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator7" Width="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" />
+                            <Border x:Name="TabDotIndicator7" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform />
+                                </Border.RenderTransform>
+                            </Border>
                         </Border>
                     </StackPanel>
                 </Grid>
@@ -1344,9 +1405,15 @@
                 <!-- 折叠 24 圆 → 展开 46 圆角方形：同一个元素跟着岛体高度插值尺寸和位置，
                      折叠/展开两套内容里的封面只保留布局占位。圆角固定 12，
                      尺寸连续变大时形状会自然从圆形过渡到圆角方形（参考灵动岛的做法）。 -->
-                <Border x:Name="MorphCover" Width="24" Height="24" CornerRadius="12"
-                        HorizontalAlignment="Left" VerticalAlignment="Top"
-                        IsHitTestVisible="False" Visibility="Collapsed">
+                <Border x:Name="MorphCover" Width="46" Height="46" CornerRadius="12"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,11,0,0"
+                        IsHitTestVisible="False" Visibility="Collapsed" RenderTransformOrigin="0,0">
+                    <Border.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="MorphScale" />
+                            <TranslateTransform x:Name="MorphShift" />
+                        </TransformGroup>
+                    </Border.RenderTransform>
                     <Border.Background>
                         <ImageBrush ImageSource="{Binding Cover}" Stretch="UniformToFill" />
                     </Border.Background>
@@ -1363,12 +1430,16 @@
 
         <!-- 音量浮层：跟随岛体底部（折叠/展开都显示），不参与命中测试 -->
         <StackPanel x:Name="VolumeHud" Orientation="Horizontal" Visibility="Collapsed"
-                    HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,48,0,0"
+                    HorizontalAlignment="Center" VerticalAlignment="Top"
                     IsHitTestVisible="False">
+            <!-- 定位走 RenderTransform：改 Margin 会让整个窗口重排，而它每帧都跟着岛高变 -->
+            <StackPanel.RenderTransform>
+                <TranslateTransform x:Name="VolumeAnchor" />
+            </StackPanel.RenderTransform>
             <Border CornerRadius="17" Background="{DynamicResource IslandBgBrush}"
                     BorderBrush="{DynamicResource IslandBorderBrush}" BorderThickness="1" Padding="13,7">
                 <Border.Effect>
-                    <DropShadowEffect BlurRadius="20" ShadowDepth="6" Opacity="0.45" Color="#000000" />
+                    <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.45" Color="#000000" />
                 </Border.Effect>
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="12"
@@ -1394,14 +1465,18 @@
 
         <!-- 系统事件浮层（电源 / USB / 蓝牙 / 键盘锁 / 专注结束） -->
         <Border x:Name="SystemAlertHud" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Top"
-                Margin="0,48,0,0" CornerRadius="17" Background="{DynamicResource IslandBgBrush}"
+                CornerRadius="17" Background="{DynamicResource IslandBgBrush}"
                 BorderBrush="{DynamicResource IslandBorderBrush}" BorderThickness="1" Padding="14,8"
                 IsHitTestVisible="False" MaxWidth="480" Opacity="0">
             <Border.RenderTransform>
-                <TranslateTransform x:Name="AlertShift" />
+                <!-- 第一层跟随岛高定位，第二层做入场位移，互不覆盖 -->
+                <TransformGroup>
+                    <TranslateTransform x:Name="AlertAnchor" />
+                    <TranslateTransform x:Name="AlertShift" />
+                </TransformGroup>
             </Border.RenderTransform>
             <Border.Effect>
-                <DropShadowEffect BlurRadius="20" ShadowDepth="6" Opacity="0.45" Color="#000000" />
+                <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.45" Color="#000000" />
             </Border.Effect>
             <StackPanel Orientation="Horizontal">
                 <TextBlock x:Name="AlertIcon" FontFamily="{StaticResource IconFont}" FontSize="14"
@@ -1417,14 +1492,17 @@
 
         <!-- 剪贴板缩略浮层 -->
         <Border x:Name="ClipboardHud" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Top"
-                Margin="0,48,0,0" CornerRadius="15" Background="{DynamicResource IslandBgBrush}"
+                CornerRadius="15" Background="{DynamicResource IslandBgBrush}"
                 BorderBrush="{DynamicResource IslandBorderBrush}" BorderThickness="1" Padding="10,7"
                 IsHitTestVisible="False" MaxWidth="440" Opacity="0">
             <Border.RenderTransform>
-                <TranslateTransform x:Name="ClipShift" />
+                <TransformGroup>
+                    <TranslateTransform x:Name="ClipAnchor" />
+                    <TranslateTransform x:Name="ClipShift" />
+                </TransformGroup>
             </Border.RenderTransform>
             <Border.Effect>
-                <DropShadowEffect BlurRadius="20" ShadowDepth="6" Opacity="0.45" Color="#000000" />
+                <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.45" Color="#000000" />
             </Border.Effect>
             <StackPanel Orientation="Horizontal">
                 <Border Width="46" Height="32" CornerRadius="6" Background="{DynamicResource ControlBrush}"

@@ -210,6 +210,62 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- 材质：与主题正交，决定透明程度与高光/内阴影的浓淡 -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="材质" />
+                    <Border Style="{StaticResource Card}" Padding="6">
+                        <StackPanel>
+                            <Border Style="{StaticResource RowBorder}" Tag="clear" MouseLeftButtonUp="Material_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#33FFFFFF" Stroke="#66FFFFFF" StrokeThickness="1"
+                                                 VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="清透" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="几乎全透明 · 只留一层薄雾" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="MaterialCheckClear" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="glass" MouseLeftButtonUp="Material_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#99FFFFFF" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="玻璃" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="通透 · 高光清晰（默认）" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="MaterialCheckGlass" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="frosted" MouseLeftButtonUp="Material_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#E6FFFFFF" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="磨砂" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="厚实 · 柔光扩散" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="MaterialCheckFrosted" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource RowBorder}" Tag="solid" MouseLeftButtonUp="Material_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#FFFFFFFF" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBlock Text="实色" FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock Text="接近不透明 · 安静收敛" FontSize="10.5" Margin="8,1,0,0"
+                                                   Foreground="{DynamicResource TertiaryTextBrush}" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="MaterialCheckSolid" Text="✓" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="12" Visibility="Collapsed" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
                     <!-- 动画 -->
                     <TextBlock Style="{StaticResource SectionTitle}" Text="动画" />
                     <Border Style="{StaticResource Card}" Padding="6">
