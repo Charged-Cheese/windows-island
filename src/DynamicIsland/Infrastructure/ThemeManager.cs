@@ -35,47 +35,47 @@ public static class ThemeManager
         new IslandTheme(
             "obsidian", "曜石",
             Background: Color.FromArgb(0xE8, 0x0A, 0x0B, 0x10),
-            Border: Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF),
+            Border: Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF),
             Primary: Color.FromRgb(0xFF, 0xFF, 0xFF),
-            Secondary: Color.FromRgb(0xA7, 0xA9, 0xB8),
-            Tertiary: Color.FromRgb(0x63, 0x65, 0x7A),
+            Secondary: Color.FromRgb(0xA9, 0xAB, 0xBA),
+            Tertiary: Color.FromRgb(0x7B, 0x7D, 0x92),
             Accent: Color.FromRgb(0x6C, 0x8C, 0xFF),
-            Card: Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF),
-            CardBorder: Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF),
-            Track: Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF),
-            Control: Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF),
-            MenuBackground: Color.FromArgb(0xFA, 0x13, 0x13, 0x1A),
-            Divider: Color.FromArgb(0x1A, 0xFF, 0xFF, 0xFF)),
+            Card: Color.FromArgb(0x16, 0xFF, 0xFF, 0xFF),
+            CardBorder: Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF),
+            Track: Color.FromArgb(0x2A, 0xFF, 0xFF, 0xFF),
+            Control: Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF),
+            MenuBackground: Color.FromArgb(0xFC, 0x0E, 0x0F, 0x15),
+            Divider: Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF)),
 
         new IslandTheme(
             "graphite", "石墨",
-            Background: Color.FromArgb(0xE9, 0x15, 0x16, 0x1A),
-            Border: Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF),
+            Background: Color.FromArgb(0xE9, 0x15, 0x16, 0x1C),
+            Border: Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF),
             Primary: Color.FromRgb(0xF4, 0xF5, 0xF7),
-            Secondary: Color.FromRgb(0xA3, 0xA6, 0xB0),
-            Tertiary: Color.FromRgb(0x62, 0x66, 0x72),
+            Secondary: Color.FromRgb(0xA8, 0xAB, 0xB5),
+            Tertiary: Color.FromRgb(0x76, 0x7A, 0x86),
             Accent: Color.FromRgb(0x6E, 0xE7, 0xD8),
-            Card: Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF),
-            CardBorder: Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF),
-            Track: Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF),
-            Control: Color.FromArgb(0x16, 0xFF, 0xFF, 0xFF),
-            MenuBackground: Color.FromArgb(0xFA, 0x17, 0x18, 0x1D),
-            Divider: Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF)),
+            Card: Color.FromArgb(0x17, 0xFF, 0xFF, 0xFF),
+            CardBorder: Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF),
+            Track: Color.FromArgb(0x2A, 0xFF, 0xFF, 0xFF),
+            Control: Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF),
+            MenuBackground: Color.FromArgb(0xFC, 0x12, 0x13, 0x19),
+            Divider: Color.FromArgb(0x1E, 0xFF, 0xFF, 0xFF)),
 
         new IslandTheme(
             "porcelain", "瓷白",
             Background: Color.FromArgb(0xF5, 0xF7, 0xF8, 0xFA),
-            Border: Color.FromArgb(0x22, 0x00, 0x00, 0x00),
+            Border: Color.FromArgb(0x26, 0x00, 0x00, 0x00),
             Primary: Color.FromRgb(0x17, 0x1A, 0x21),
-            Secondary: Color.FromRgb(0x5A, 0x61, 0x70),
-            Tertiary: Color.FromRgb(0x8A, 0x90, 0xA0),
+            Secondary: Color.FromRgb(0x52, 0x5A, 0x68),
+            Tertiary: Color.FromRgb(0x7E, 0x84, 0x94),
             Accent: Color.FromRgb(0x3D, 0x6B, 0xAA),
-            Card: Color.FromArgb(0x10, 0x00, 0x00, 0x00),
-            CardBorder: Color.FromArgb(0x18, 0x00, 0x00, 0x00),
-            Track: Color.FromArgb(0x22, 0x00, 0x00, 0x00),
-            Control: Color.FromArgb(0x14, 0x00, 0x00, 0x00),
+            Card: Color.FromArgb(0x12, 0x00, 0x00, 0x00),
+            CardBorder: Color.FromArgb(0x20, 0x00, 0x00, 0x00),
+            Track: Color.FromArgb(0x26, 0x00, 0x00, 0x00),
+            Control: Color.FromArgb(0x16, 0x00, 0x00, 0x00),
             MenuBackground: Color.FromArgb(0xFA, 0xFF, 0xFF, 0xFF),
-            Divider: Color.FromArgb(0x14, 0x00, 0x00, 0x00)),
+            Divider: Color.FromArgb(0x18, 0x00, 0x00, 0x00)),
     };
 
     public static string CurrentId { get; private set; } = "obsidian";
@@ -125,6 +125,48 @@ public static class ThemeManager
         Set(resources, "ControlBrush", theme.Control);
         Set(resources, "MenuBgBrush", theme.MenuBackground);
         Set(resources, "DividerBrush", theme.Divider);
+        PublishSurface(resources, theme);
+    }
+
+    /// <summary>
+    /// 玻璃表面渐变随主题走：深色主题用「白高光 + 黑内阴影」，
+    /// 浅色主题把底部阴影压淡，否则整块玻璃下半截会发脏。
+    /// 这两个 Brush 被 MainWindow 用 DynamicResource 引用，切主题即时生效。
+    /// </summary>
+    private static void PublishSurface(ResourceDictionary resources, IslandTheme theme)
+    {
+        bool light = theme.Id == "porcelain";
+
+        var island = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1)
+        };
+        island.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(light ? 0x55 : 0x3A), 0xFF, 0xFF, 0xFF), 0));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(light ? 0x24 : 0x12), 0xFF, 0xFF, 0xFF), 0.035));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.12));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.66));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(light ? 0x07 : 0x0E), 0x00, 0x00, 0x00), 0.90));
+        island.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(light ? 0x12 : 0x2A), 0x00, 0x00, 0x00), 1));
+        island.Freeze();
+        resources["IslandSurfaceBrush"] = island;
+
+        // 浅色主题用「白色卡片」靠亮度浮起（黑色半透会在浅底上发灰发脏），
+        // 深色主题仍用卡片色的两倍透明度做顶亮底暗。
+        Color cardColor = light ? Colors.White : theme.Card;
+        byte topAlpha = light ? (byte)0xE8 : (byte)Math.Min(0xFF, theme.Card.A * 1.35);
+        byte bottomAlpha = light ? (byte)0xC8 : (byte)Math.Max(0, theme.Card.A * 0.55);
+        var card = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1)
+        };
+        card.GradientStops.Add(new GradientStop(
+            Color.FromArgb(topAlpha, cardColor.R, cardColor.G, cardColor.B), 0));
+        card.GradientStops.Add(new GradientStop(
+            Color.FromArgb(bottomAlpha, cardColor.R, cardColor.G, cardColor.B), 1));
+        card.Freeze();
+        resources["CardSurfaceBrush"] = card;
     }
 
     /// <summary>立即切到某个强调色（换主题时用，避免主题与封面色互相追赶）。</summary>

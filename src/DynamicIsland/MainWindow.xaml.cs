@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -94,8 +94,8 @@ public partial class MainWindow : Window
     private const double CollapsedWeatherWidth = 248;
 
     // 媒体页的默认展开尺寸；其余页面按 TabSizes 单独给高度
-    private const double ExpandedWidth = 380;
-    private const double ExpandedHeight = 184;
+    private const double ExpandedWidth = 384;
+    private const double ExpandedHeight = 188;
 
     private const double ExpandedRadius = 26.0;
 
@@ -106,13 +106,13 @@ public partial class MainWindow : Window
     private static readonly (double Width, double Height)[] TabSizes =
     {
         (ExpandedWidth, ExpandedHeight),  // 0 媒体
-        (ExpandedWidth, 156),             // 1 天气
-        (ExpandedWidth, 184),             // 2 硬件
-        (ExpandedWidth, 156),             // 3 图标坞
-        (ExpandedWidth, 220),             // 4 通知
-        (ExpandedWidth, 196),             // 5 歌词
-        (ExpandedWidth, 220),             // 6 剪贴板
-        (452, 356)                        // 7 日历：左侧月历 + 右侧详情
+        (ExpandedWidth, 176),             // 1 天气：大温度一行 + 指标 + 预报
+        (ExpandedWidth, ExpandedHeight),  // 2 硬件：2×2 卡片
+        (ExpandedWidth, 156),             // 3 图标坞：两行色块
+        (ExpandedWidth, 236),             // 4 通知：固定行高列表
+        (ExpandedWidth, ExpandedHeight),  // 5 歌词
+        (ExpandedWidth, 236),             // 6 剪贴板：固定行高列表
+        (460, 320)                        // 7 日历：左侧月历 + 右侧详情
     };
 
     /// <summary>音乐 / 歌词页才在顶部显示媒体条；其它功能页整块让给内容。</summary>
@@ -465,8 +465,8 @@ public partial class MainWindow : Window
                 ContextMenuPanel.UpdateLayout();
                 double menuLeft = Canvas.GetLeft(ContextMenuPanel);
                 double menuTop = Canvas.GetTop(ContextMenuPanel);
-                double menuWidth = ContextMenuPanel.ActualWidth > 0 ? ContextMenuPanel.ActualWidth : 176;
-                double menuHeight = ContextMenuPanel.ActualHeight > 0 ? ContextMenuPanel.ActualHeight : 380;
+                double menuWidth = ContextMenuPanel.ActualWidth > 0 ? ContextMenuPanel.ActualWidth : 204;
+                double menuHeight = ContextMenuPanel.ActualHeight > 0 ? ContextMenuPanel.ActualHeight : 430;
 
                 hit.Union(new Rect(
                     windowRect.Left + menuLeft * scale,
@@ -919,17 +919,25 @@ public partial class MainWindow : Window
     {
         Point mouse = Mouse.GetPosition(RootGrid);
 
-        MenuAutoStartText.Text = AutoStartService.IsEnabled ? "开机自启 ✓" : "开机自启";
+        MenuAutoStartText.Text = "开机自启";
+        MenuAutoStartCheck.Visibility = AutoStartService.IsEnabled
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         UpdateThemeMenu();
 
         ContextMenuPanel.Visibility = Visibility.Visible;
 
-        double left = Math.Clamp(mouse.X - 88, 8, Math.Max(8, ActualWidth - 196));
-        double top = Math.Clamp(mouse.Y + 14, 8, Math.Max(8, ActualHeight - 374));
+        // 先量一次菜单实际尺寸，再贴边收进窗口内。菜单高度随主题/字号变化，
+        // 写死常量时在 125% / 150% DPI 下会露到窗口外被裁掉。
+        UpdateLayout();
+        double menuWidth = ContextMenuPanel.ActualWidth > 0 ? ContextMenuPanel.ActualWidth : 204;
+        double menuHeight = ContextMenuPanel.ActualHeight > 0 ? ContextMenuPanel.ActualHeight : 430;
+
+        double left = Math.Clamp(mouse.X - menuWidth / 2, 8, Math.Max(8, ActualWidth - menuWidth - 8));
+        double top = Math.Clamp(mouse.Y + 14, 8, Math.Max(8, ActualHeight - menuHeight - 8));
         Canvas.SetLeft(ContextMenuPanel, left);
         Canvas.SetTop(ContextMenuPanel, top);
 
-        UpdateLayout();
         UpdateIslandHitRect();
         _autoCollapseTimer.Stop();
     }
@@ -982,9 +990,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        MenuThemeObsidianText.Text = ThemeManager.CurrentId == "obsidian" ? "曜石  ✓" : "曜石";
-        MenuThemeGraphiteText.Text = ThemeManager.CurrentId == "graphite" ? "石墨  ✓" : "石墨";
-        MenuThemePorcelainText.Text = ThemeManager.CurrentId == "porcelain" ? "瓷白  ✓" : "瓷白";
+        string current = ThemeManager.CurrentId;
+        MenuThemeObsidianText.Text = "曜石";
+        MenuThemeGraphiteText.Text = "石墨";
+        MenuThemePorcelainText.Text = "瓷白";
+
+        MenuThemeObsidianCheck.Visibility = current == "obsidian" ? Visibility.Visible : Visibility.Collapsed;
+        MenuThemeGraphiteCheck.Visibility = current == "graphite" ? Visibility.Visible : Visibility.Collapsed;
+        MenuThemePorcelainCheck.Visibility = current == "porcelain" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void MenuLog_Click(object sender, MouseButtonEventArgs e)
@@ -2060,7 +2073,7 @@ public partial class MainWindow : Window
             double eased = distance * distance * (3 - 2 * distance);
             double stretch = Math.Min(speed * 0.8, 3.0) * (1 - eased);
 
-            _tabDots[i].Height = 3.5 + 6.5 * (1 - eased) + stretch;
+            _tabDots[i].Height = 4 + 8 * (1 - eased) + stretch;
             _tabDots[i].Opacity = 0.25 + 0.65 * (1 - eased);
         }
     }

@@ -349,6 +349,14 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _weatherDetail, value);
     }
 
+    private string[] _weatherForecastParts = System.Array.Empty<string>();
+    /// <summary>三日预报分段：每段两行「M/d 描述 / 最低~最高°」，供三列小卡排版。</summary>
+    public string[] WeatherForecastParts
+    {
+        get => _weatherForecastParts;
+        private set => SetProperty(ref _weatherForecastParts, value);
+    }
+
     private string _weatherForecast = string.Empty;
     public string WeatherForecast
     {
@@ -533,9 +541,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     /// <summary>通知后端状态（通知页顶部提示用）。</summary>
     public string NotificationStatusText => _notifications.Backend switch
     {
-        NotificationBackend.WinRtListener => "系统通知 · 已授权",
-        NotificationBackend.WpnDatabase => "系统通知 · 数据库只读",
-        _ => "系统通知不可用"
+        NotificationBackend.WinRtListener => "实时监听中",
+        NotificationBackend.WpnDatabase => "来自系统通知历史 · 只读",
+        _ => "通知读取不可用"
     };
 
     public bool NotificationAccessOk => _notifications.IsReady;
@@ -1051,6 +1059,9 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                 WeatherForecast = string.Join("   ",
                     info.Daily.Take(3).Select(d =>
                         $"{d.Date:M/d} {d.Description} {d.MinTemperature:F0}~{d.MaxTemperature:F0}°"));
+                WeatherForecastParts = info.Daily.Take(3)
+                    .Select(d => $"{d.Date:M/d} {d.Description}\n{d.MinTemperature:F0}~{d.MaxTemperature:F0}°")
+                    .ToArray();
             });
         }
         catch (Exception ex)
@@ -1096,7 +1107,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         DiskRatio = stats.DiskUsedPercent / 100;
         DiskText = $"{stats.DiskUsedPercent:F0}%";
 
-        NetworkText = $"↓{FormatRate(stats.NetDownMbps)} ↑{FormatRate(stats.NetUpMbps)}";
+        NetworkText = $"下载 {FormatRate(stats.NetDownMbps)}  ·  上传 {FormatRate(stats.NetUpMbps)}";
 
         PushHistory(_cpuHistory, CpuRatio);
         PushHistory(_memoryHistory, MemoryRatio);
@@ -1118,7 +1129,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>把 0-1 的采样序列映射成 44×14 的折线坐标。</summary>
+    /// <summary>把 0-1 的采样序列映射成 52×16 的折线坐标。</summary>
     private static PointCollection BuildPoints(Queue<double> queue)
     {
         var points = new PointCollection();
@@ -1127,8 +1138,8 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             return points;
         }
 
-        const double width = 44;
-        const double height = 14;
+        const double width = 52;
+        const double height = 16;
         double step = queue.Count > 1 ? width / (queue.Count - 1) : 0;
         int index = 0;
         foreach (double value in queue)

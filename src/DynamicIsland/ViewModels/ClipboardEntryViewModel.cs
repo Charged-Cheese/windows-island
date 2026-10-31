@@ -24,6 +24,9 @@ public sealed class ClipboardEntryViewModel
 
     public string Preview => Entry.Preview;
 
+    /// <summary>列表里单行展示：把复制内容里的换行压成空格，长文本不再撑满整页。</summary>
+    public string PreviewOneLine => (Entry.Preview ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+
     public string Meta => Entry.Meta;
 
     public string TimeText => Entry.Time.ToString("HH:mm");

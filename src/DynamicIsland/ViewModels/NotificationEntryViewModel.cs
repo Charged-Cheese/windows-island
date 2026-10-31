@@ -28,7 +28,13 @@ public sealed class NotificationEntryViewModel : ObservableObject
 
     public string DisplayTitle => Item.DisplayTitle;
 
+    /// <summary>标题也压成单行：有些应用的标题自带换行（例如 Steam 启动检测），会把列表项撑高。</summary>
+    public string DisplayTitleOneLine => (Item.DisplayTitle ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+
     public string Body => Item.Body;
+
+    /// <summary>列表里单行展示：把正文里的换行压成空格，避免多行把行高撑开。</summary>
+    public string BodyOneLine => (Item.Body ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
 
     public string TimeText
     {
