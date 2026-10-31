@@ -1,4 +1,4 @@
-<Window x:Class="DynamicIsland.MainWindow"
+﻿<Window x:Class="DynamicIsland.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="灵动岛"
@@ -163,6 +163,12 @@
                         CornerRadius="{Binding CornerRadius, ElementName=Island}"
                         Background="{StaticResource FrostNoiseBrush}" Opacity="0.3" />
 
+                <!-- ⑤ 强调色 bloom：跟随当前页的 accent（媒体页更强），
+                     让玻璃下面像有光透上来；强度由 ThemeManager.SetBloomStrength 控制。 -->
+                <Border IsHitTestVisible="False"
+                        CornerRadius="{Binding CornerRadius, ElementName=Island}"
+                        Background="{DynamicResource AccentBloomBrush}" />
+
                 <!-- ==================== 折叠态 ==================== -->
                 <Grid x:Name="CollapsedContent" Margin="0">
                     <!-- 有媒体 -->
@@ -184,7 +190,7 @@
 
                         <Grid Grid.Column="1" x:Name="TitleClip" ClipToBounds="True">
                             <TextBlock x:Name="CollapsedTitleText" Text="{Binding CollapsedText}"
-                                       FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                                       FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource PrimaryTextBrush}"
                                        VerticalAlignment="Center" TextWrapping="NoWrap"
                                        HorizontalAlignment="Left">
@@ -209,10 +215,10 @@
                             <!-- 专注倒计时 -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                         Visibility="{Binding FocusActive, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="&#xE823;" FontFamily="{StaticResource IconFont}" FontSize="9"
+                                <TextBlock Text="&#xE823;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeSm}"
                                            Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
                                            Margin="0,0,4,0" />
-                                <TextBlock Text="{Binding FocusText}" FontFamily="{StaticResource UiFont}" FontSize="12"
+                                <TextBlock Text="{Binding FocusText}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                            FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
@@ -221,11 +227,11 @@
                             <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
                                     Cursor="Hand" ToolTip="音乐" Margin="2,0,3,0"
                                     MouseLeftButtonUp="PillMusic_Click">
-                                <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="10"
+                                <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeBase}"
                                            Foreground="{DynamicResource AccentBrush}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
-                            <TextBlock Text="{Binding ClockText}" FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                            <TextBlock Text="{Binding ClockText}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                        FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"
                                        VerticalAlignment="Center"
                                        Visibility="{Binding ShowClockInPill, Converter={StaticResource BoolToVis}}" />
@@ -234,7 +240,7 @@
                             <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
                                     Cursor="Hand" ToolTip="日历" Margin="3,0,0,0"
                                     MouseLeftButtonUp="PillCalendar_Click">
-                                <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="9.5"
+                                <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeSm}"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
@@ -252,15 +258,15 @@
                         <Ellipse Grid.Column="0" Width="7" Height="7" Fill="#FF34C759" VerticalAlignment="Center" Margin="0,0,9,0" />
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding ClockText}" FontFamily="{StaticResource UiFont}" FontSize="13"
+                            <TextBlock Text="{Binding ClockText}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                        FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
-                            <TextBlock Text="{Binding DateText}" FontFamily="{StaticResource UiFont}" FontSize="11.5"
+                            <TextBlock Text="{Binding DateText}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeMd}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" Margin="8,0,0,0"
                                        VerticalAlignment="Center" Cursor="Hand" ToolTip="打开日历"
                                        MouseLeftButtonUp="PillCalendar_Click" />
                         </StackPanel>
 
-                        <TextBlock Grid.Column="2" FontFamily="{StaticResource UiFont}" FontSize="12"
+                        <TextBlock Grid.Column="2" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                    Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"
                                    Visibility="{Binding HasWeather, Converter={StaticResource BoolToVis}}">
                             <Run Text="{Binding WeatherTemperature, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" " /><Run
@@ -305,60 +311,84 @@
                             </Border>
 
                             <StackPanel Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="ExpandedTitleText" Text="{Binding Title}" FontFamily="{StaticResource UiFont}" FontSize="13.5"
+                                <TextBlock x:Name="ExpandedTitleText" Text="{Binding Title}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                            FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"
                                            TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Artist}" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                                <TextBlock Text="{Binding Artist}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                            Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,2,0,0"
                                            TextTrimming="CharacterEllipsis" />
                             </StackPanel>
 
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                            <StackPanel x:Name="MediaControls" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
                                         Margin="0,0,2,0">
                                 <!-- 主操作实心强调，其余幽灵钮：同尺寸、同基线，只有播放键抢视觉重量 -->
-                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
-                                        MouseLeftButtonUp="PrevButton_Click">
-                                    <TextBlock Text="&#xE892;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                        Margin="-3,0,-3,0" MouseLeftButtonUp="PrevButton_Click">
+                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                        <TextBlock Text="&#xE892;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
                                 </Border>
-                                <Border Width="30" Height="30" CornerRadius="15" Background="{DynamicResource AccentBrush}" Cursor="Hand"
-                                        Margin="5,0" MouseLeftButtonUp="PlayButton_Click">
-                                    <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="11"
-                                               Foreground="{DynamicResource IslandBgBrush}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border Width="36" Height="36" Background="Transparent" Cursor="Hand"
+                                        Margin="2,0" MouseLeftButtonUp="PlayButton_Click">
+                                    <Border Width="30" Height="30" CornerRadius="15" Background="{DynamicResource AccentBrush}"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                        <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeMd}"
+                                                   Foreground="{DynamicResource IslandBgBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
                                 </Border>
-                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
-                                        MouseLeftButtonUp="NextButton_Click">
-                                    <TextBlock Text="&#xE893;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                        Margin="-3,0" MouseLeftButtonUp="NextButton_Click">
+                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                        <TextBlock Text="&#xE893;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
                                 </Border>
-                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
-                                        Margin="5,0,0,0" ToolTip="切换播放器来源"
+                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                        Margin="2,0" ToolTip="切换播放器来源"
                                         Visibility="{Binding CanSwitchSource, Converter={StaticResource BoolToVis}}"
                                         MouseLeftButtonUp="SwitchSource_Click">
-                                    <TextBlock Text="⇄" FontFamily="{StaticResource UiFont}" FontSize="9"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                        <TextBlock Text="⇄" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
                                 </Border>
-                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
-                                        Margin="5,0,0,0" ToolTip="静音 / 取消静音" MouseLeftButtonUp="MuteButton_Click">
-                                    <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="9"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                        Margin="2,0" ToolTip="静音 / 取消静音" MouseLeftButtonUp="MuteButton_Click">
+                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                        <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeSm}"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
                                 </Border>
                                 <!-- 展开态的日历入口：悬停展开后点这里直接进日历 -->
-                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1" Cursor="Hand"
-                                        Margin="5,0,0,0" ToolTip="日历" MouseLeftButtonUp="PillCalendar_Click">
-                                    <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="8"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                        Margin="2,0" ToolTip="日历" MouseLeftButtonUp="PillCalendar_Click">
+                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                        <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="8"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
                                 </Border>
                             </StackPanel>
                         </Grid>
@@ -372,7 +402,7 @@
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Grid.Column="0" Text="{Binding PositionText}" FontFamily="{StaticResource UiFont}"
-                                       FontSize="9" Foreground="{DynamicResource TertiaryTextBrush}"
+                                       FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource TertiaryTextBrush}"
                                        VerticalAlignment="Center" Margin="0,0,6,0" />
 
                             <Grid x:Name="ProgressArea" Grid.Column="1" Height="14"
@@ -458,7 +488,7 @@
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
                                 <TextBlock Text="{Binding RemainText}" FontFamily="{StaticResource UiFont}"
-                                           FontSize="9" Foreground="{DynamicResource TertiaryTextBrush}"
+                                           FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource TertiaryTextBrush}"
                                            VerticalAlignment="Center" />
                                 <Border x:Name="VolumeTrack" Width="44" Height="4" CornerRadius="2"
                                         Background="{DynamicResource TrackBrush}" Margin="9,0,0,0"
@@ -498,18 +528,18 @@
                                     <StackPanel VerticalAlignment="Center"
                                                 Visibility="{Binding HasLyrics, Converter={StaticResource BoolToVis}}">
                                         <TextBlock Text="{Binding LyricPrevious}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="10.5" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                   FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource TertiaryTextBrush}"
                                                    TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
                                         <TextBlock Text="{Binding LyricCurrent}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="15" FontWeight="SemiBold"
+                                                   FontSize="{StaticResource FontSizeXl}" FontWeight="SemiBold"
                                                    Foreground="{Binding LyricCurrentBrush}"
                                                    TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"
                                                    Margin="0,5,0,5" />
                                         <TextBlock Text="{Binding LyricNext}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="10.5" Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource SecondaryTextBrush}"
                                                    TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
                                         <TextBlock Text="{Binding LyricNext2}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="10" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                   FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource TertiaryTextBrush}"
                                                    TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"
                                                    Margin="0,3,0,0" />
                                     </StackPanel>
@@ -555,7 +585,7 @@
                                                 </Border.RenderTransform>
                                             </Border>
                                         </StackPanel>
-                                        <TextBlock Text="暂无歌词" FontFamily="{StaticResource UiFont}" FontSize="10"
+                                        <TextBlock Text="暂无歌词" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                                    Foreground="{DynamicResource TertiaryTextBrush}"
                                                    HorizontalAlignment="Center" Margin="0,8,0,0" />
                                     </StackPanel>
@@ -598,7 +628,7 @@
                                                            FontSize="31" FontWeight="Light" LineHeight="34"
                                                            Foreground="{DynamicResource PrimaryTextBrush}" />
                                                 <TextBlock Text="{Binding WeatherDescription}" FontFamily="{StaticResource UiFont}"
-                                                           FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" Margin="2,-2,0,0" />
+                                                           FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource SecondaryTextBrush}" Margin="2,-2,0,0" />
                                             </StackPanel>
                                         </StackPanel>
 
@@ -607,27 +637,27 @@
                                         <StackPanel Grid.Column="1" Orientation="Horizontal"
                                                     HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,2,6,0">
                                             <StackPanel Margin="0,0,13,0">
-                                                <TextBlock Text="体感" FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                                <TextBlock Text="体感" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                            Foreground="{DynamicResource TertiaryTextBrush}" HorizontalAlignment="Right" />
                                                 <TextBlock Text="{Binding WeatherFeelsLike}" FontFamily="{StaticResource UiFont}"
-                                                           FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,1,0,0"
+                                                           FontSize="{StaticResource FontSizeLg}" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,1,0,0"
                                                            Foreground="{DynamicResource PrimaryTextBrush}" />
                                             </StackPanel>
                                             <StackPanel Margin="0,0,13,0">
-                                                <TextBlock Text="湿度" FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                                <TextBlock Text="湿度" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                            Foreground="{DynamicResource TertiaryTextBrush}" HorizontalAlignment="Right" />
                                                 <TextBlock Text="{Binding WeatherHumidity}" FontFamily="{StaticResource UiFont}"
-                                                           FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,1,0,0"
+                                                           FontSize="{StaticResource FontSizeLg}" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,1,0,0"
                                                            Foreground="{DynamicResource PrimaryTextBrush}" />
                                             </StackPanel>
                                             <StackPanel>
-                                                <TextBlock Text="风速" FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                                <TextBlock Text="风速" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                            Foreground="{DynamicResource TertiaryTextBrush}" HorizontalAlignment="Right" />
-                                                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12.5" FontWeight="SemiBold"
+                                                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}" FontWeight="SemiBold"
                                                            HorizontalAlignment="Right" Margin="0,1,0,0"
                                                            Foreground="{DynamicResource PrimaryTextBrush}">
                                                     <Run Text="{Binding WeatherWind, Mode=OneWay}" /><Run Text=" " /><Run Text="km/h"
-                                                                                                         FontSize="8.5"
+                                                                                                         FontSize="{StaticResource FontSizeSm}"
                                                                                                          Foreground="{DynamicResource TertiaryTextBrush}" />
                                                 </TextBlock>
                                             </StackPanel>
@@ -645,7 +675,7 @@
                                                 <Border Background="{DynamicResource InsetSurfaceBrush}" CornerRadius="8"
                                                         Padding="8,5" Margin="0,0,6,0">
                                                     <TextBlock Text="{Binding}" FontFamily="{StaticResource UiFont}"
-                                                               FontSize="9.5" Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource SecondaryTextBrush}"
                                                                TextAlignment="Center" />
                                                 </Border>
                                             </DataTemplate>
@@ -691,10 +721,10 @@
                                     <Grid>
                                         <!-- 折线已经表达了历史趋势，底部那条同源进度条是重复信息，删掉换成大号数值 -->
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="CPU" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="CPU" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource SecondaryTextBrush}" />
                                             <TextBlock Text="{Binding CpuText}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="17" FontWeight="SemiBold" Margin="0,1,0,0"
+                                                       FontSize="{StaticResource FontSizeXxl}" FontWeight="SemiBold" Margin="0,1,0,0"
                                                        Foreground="{DynamicResource PrimaryTextBrush}" />
                                         </StackPanel>
                                         <Polyline Points="{Binding CpuHistoryPoints}" Stretch="None"
@@ -708,10 +738,10 @@
                                         CornerRadius="10" Padding="10,8" Margin="4,0,0,4">
                                     <Grid>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="内存" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="内存" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource SecondaryTextBrush}" />
                                             <TextBlock Text="{Binding MemoryText}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="17" FontWeight="SemiBold" Margin="0,1,0,0"
+                                                       FontSize="{StaticResource FontSizeXxl}" FontWeight="SemiBold" Margin="0,1,0,0"
                                                        Foreground="{DynamicResource PrimaryTextBrush}" />
                                         </StackPanel>
                                         <Polyline Points="{Binding MemoryHistoryPoints}" Stretch="None"
@@ -726,10 +756,10 @@
                             Visibility="{Binding HasGpu, Converter={StaticResource BoolToVis}}">
                                     <Grid>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="GPU" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="GPU" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource SecondaryTextBrush}" />
                                             <TextBlock Text="{Binding GpuText}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="17" FontWeight="SemiBold" Margin="0,1,0,0"
+                                                       FontSize="{StaticResource FontSizeXxl}" FontWeight="SemiBold" Margin="0,1,0,0"
                                                        Foreground="{DynamicResource PrimaryTextBrush}" />
                                         </StackPanel>
                                         <Polyline Points="{Binding GpuHistoryPoints}" Stretch="None"
@@ -743,10 +773,10 @@
                                         CornerRadius="10" Padding="10,8" Margin="4,4,0,0">
                                     <Grid>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="磁盘" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="磁盘" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource SecondaryTextBrush}" />
                                             <TextBlock Text="{Binding DiskText}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="17" FontWeight="SemiBold" Margin="0,1,0,0"
+                                                       FontSize="{StaticResource FontSizeXxl}" FontWeight="SemiBold" Margin="0,1,0,0"
                                                        Foreground="{DynamicResource PrimaryTextBrush}" />
                                         </StackPanel>
                                         <Polyline Points="{Binding DiskHistoryPoints}" Stretch="None"
@@ -758,7 +788,7 @@
                                     </Grid>
 
                                     <TextBlock Grid.Row="2" Text="{Binding NetworkText}"
-                                               FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                               FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                Foreground="{DynamicResource TertiaryTextBrush}"
                                                HorizontalAlignment="Center" Margin="0,5,0,0" />
                                 </Grid>
@@ -789,13 +819,13 @@
                                     </Grid>
 
                                     <TextBlock Grid.Row="1" Text="{Binding LauncherErrorText}"
-                                               FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                               FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                Foreground="#FFFF8A8A" HorizontalAlignment="Left"
                                                TextTrimming="CharacterEllipsis" Margin="4,0,0,3"
                                                Visibility="{Binding HasLauncherError, Converter={StaticResource BoolToVis}}" />
 
                                     <TextBlock Grid.Row="2" Text="把桌面快捷方式拖到岛上即可暂存"
-                                               FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                                               FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                                Foreground="{DynamicResource TertiaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Visibility="{Binding HasLaunchers, Converter={StaticResource InverseBoolToVis}}" />
@@ -871,7 +901,7 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="通知" FontFamily="{StaticResource UiFont}" FontSize="9">
+                                                <TextBlock Text="通知" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
@@ -897,7 +927,7 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="剪贴板" FontFamily="{StaticResource UiFont}" FontSize="9">
+                                                <TextBlock Text="剪贴板" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
@@ -914,29 +944,29 @@
                                         <Border HorizontalAlignment="Right" Style="{StaticResource GhostButtonStyle}"
                                                 MouseLeftButtonUp="ClearDynamic_Click"
                                                 Visibility="{Binding HasDynamicItems, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="清空" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="清空" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource SecondaryTextBrush}" />
                                         </Border>
                                     </Grid>
 
                                     <TextBlock Grid.Row="1" Text="{Binding NotificationStatusText}"
-                                               FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                               FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                Foreground="{DynamicResource TertiaryTextBrush}"
                                                Margin="4,0,0,3" TextTrimming="CharacterEllipsis"
                                                Visibility="{Binding ShowNotificationPanel, Converter={StaticResource BoolToVis}}" />
 
                                     <TextBlock Grid.Row="1" Text="{Binding ClipboardStatus}"
-                                               FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                               FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                Foreground="{DynamicResource TertiaryTextBrush}"
                                                Margin="4,0,0,3" TextTrimming="CharacterEllipsis"
                                                Visibility="{Binding ShowClipboardPanel, Converter={StaticResource BoolToVis}}" />
 
-                                    <TextBlock Grid.Row="2" Text="暂无通知" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                                    <TextBlock Grid.Row="2" Text="暂无通知" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                                Foreground="{DynamicResource TertiaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Visibility="{Binding ShowNotificationEmpty, Converter={StaticResource BoolToVis}}" />
 
-                                    <TextBlock Grid.Row="2" Text="暂无剪贴记录" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                                    <TextBlock Grid.Row="2" Text="暂无剪贴记录" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                                Foreground="{DynamicResource TertiaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                Visibility="{Binding ShowClipboardEmpty, Converter={StaticResource BoolToVis}}" />
@@ -976,7 +1006,7 @@
                                                                         <Image Source="{Binding Icon}" Stretch="Uniform" Margin="4"
                                                                                RenderOptions.BitmapScalingMode="HighQuality"
                                                                                Visibility="{Binding HasIcon, Converter={StaticResource BoolToVis}}" />
-                                                                        <TextBlock Text="{Binding Initial}" FontSize="10" FontWeight="SemiBold"
+                                                                        <TextBlock Text="{Binding Initial}" FontSize="{StaticResource FontSizeBase}" FontWeight="SemiBold"
                                                                                    Foreground="#FFFFFFFF"
                                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                    Visibility="{Binding HasIcon, Converter={StaticResource InverseBoolToVis}}" />
@@ -984,14 +1014,14 @@
                                                                 </Border>
                                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" ClipToBounds="True">
                                                                     <TextBlock Text="{Binding DisplayTitleOneLine}" FontFamily="{StaticResource UiFont}"
-                                                                               FontSize="11" Foreground="{DynamicResource PrimaryTextBrush}"
+                                                                               FontSize="{StaticResource FontSizeMd}" Foreground="{DynamicResource PrimaryTextBrush}"
                                                                                TextTrimming="CharacterEllipsis" />
                                                                     <TextBlock Text="{Binding BodyOneLine}" FontFamily="{StaticResource UiFont}"
-                                                                               FontSize="9.5" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                                               FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource TertiaryTextBrush}"
                                                                                TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
                                                                 </StackPanel>
                                                                 <TextBlock Grid.Column="2" Text="{Binding TimeText}"
-                                                                           FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                                                           FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                                            Foreground="{DynamicResource TertiaryTextBrush}"
                                                                            VerticalAlignment="Top" Margin="0,3,0,0" />
                                                             </Grid>
@@ -1037,7 +1067,7 @@
                                                                         ClipToBounds="True">
                                                                     <Grid>
                                                                         <TextBlock Text="&#xE8C8;" FontFamily="{StaticResource IconFont}"
-                                                                                   FontSize="10" Foreground="{DynamicResource AccentBrush}"
+                                                                                   FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource AccentBrush}"
                                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                    Visibility="{Binding IsText, Converter={StaticResource BoolToVis}}" />
                                                                         <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"
@@ -1046,14 +1076,14 @@
                                                                 </Border>
                                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" ClipToBounds="True">
                                                                     <TextBlock Text="{Binding PreviewOneLine}" FontFamily="{StaticResource UiFont}"
-                                                                               FontSize="10.5" Foreground="{DynamicResource PrimaryTextBrush}"
+                                                                               FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource PrimaryTextBrush}"
                                                                                TextTrimming="CharacterEllipsis" />
                                                                     <TextBlock Text="{Binding Meta}" FontFamily="{StaticResource UiFont}"
-                                                                               FontSize="8.5" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                                               FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource TertiaryTextBrush}"
                                                                                TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
                                                                 </StackPanel>
                                                                 <TextBlock Grid.Column="2" Text="{Binding TimeText}"
-                                                                           FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                                                           FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                                            Foreground="{DynamicResource TertiaryTextBrush}"
                                                                            VerticalAlignment="Top" Margin="0,3,0,0" />
                                                             </Grid>
@@ -1096,7 +1126,7 @@
                                                 <Border Width="3" Height="11" CornerRadius="1.5"
                                                         Background="{DynamicResource AccentBrush}" Opacity="0.9" />
                                                 <TextBlock Text="{Binding CalendarTitle}" FontFamily="{StaticResource UiFont}"
-                                                           FontSize="15.5" FontWeight="SemiBold"
+                                                           FontSize="{StaticResource FontSizeXl}" FontWeight="SemiBold"
                                                            Foreground="{DynamicResource PrimaryTextBrush}"
                                                            Margin="7,0,0,0" VerticalAlignment="Center" />
                                             </StackPanel>
@@ -1121,19 +1151,19 @@
 
                                         <!-- 星期标题：与日期网格同列宽 -->
                                         <UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,4">
-                                            <TextBlock Text="一" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="一" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                            <TextBlock Text="二" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="二" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                            <TextBlock Text="三" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="三" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                            <TextBlock Text="四" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="四" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                            <TextBlock Text="五" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="五" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                            <TextBlock Text="六" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="六" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
-                                            <TextBlock Text="日" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                                            <TextBlock Text="日" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                        Foreground="{DynamicResource TertiaryTextBrush}" TextAlignment="Center" />
                                         </UniformGrid>
 
@@ -1156,7 +1186,7 @@
                                                                     BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.4"
                                                                     Visibility="Collapsed" />
                                                             <TextBlock x:Name="DayText" Text="{Binding Day}"
-                                                                       FontFamily="{StaticResource UiFont}" FontSize="11.5"
+                                                                       FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeMd}"
                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                        Foreground="{DynamicResource PrimaryTextBrush}" />
                                                         </Grid>
@@ -1202,13 +1232,13 @@
 
                                         <StackPanel Grid.Row="0">
                                             <TextBlock Text="{Binding CalendarSelectedDate}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="17" FontWeight="SemiBold"
+                                                       FontSize="{StaticResource FontSizeXxl}" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource PrimaryTextBrush}" />
                                             <TextBlock Text="{Binding CalendarSelectedWeekday}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="11.5" Foreground="{DynamicResource SecondaryTextBrush}"
+                                                       FontSize="{StaticResource FontSizeMd}" Foreground="{DynamicResource SecondaryTextBrush}"
                                                        Margin="0,3,0,0" />
                                             <TextBlock Text="{Binding CalendarSelectedLunar}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="10.5" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                       FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource TertiaryTextBrush}"
                                                        Margin="0,2,0,0"
                                                        Visibility="{Binding HasCalendarLunar, Converter={StaticResource BoolToVis}}" />
                                         </StackPanel>
@@ -1219,7 +1249,7 @@
                                                        Foreground="{DynamicResource TertiaryTextBrush}" Opacity="0.45"
                                                        HorizontalAlignment="Center" />
                                             <TextBlock Text="{Binding CalendarScheduleHint}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="10.5" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                       FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource TertiaryTextBrush}"
                                                        HorizontalAlignment="Center" Margin="0,6,0,0"
                                                        TextAlignment="Center" />
                                         </StackPanel>
@@ -1228,7 +1258,7 @@
                                         <Border Grid.Row="2" CornerRadius="8" Padding="8,4" Cursor="Hand"
                                                 Background="Transparent" HorizontalAlignment="Left"
                                                 MouseLeftButtonUp="CalendarToday_Click">
-                                            <TextBlock Text="回到今天" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                                            <TextBlock Text="回到今天" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                                        Foreground="{DynamicResource AccentBrush}" />
                                         </Border>
                                     </Grid>
@@ -1312,19 +1342,19 @@
                             <Image Source="{Binding NotificationIcon}" Stretch="Uniform" Margin="5"
                                    RenderOptions.BitmapScalingMode="HighQuality"
                                    Visibility="{Binding HasNotificationIcon, Converter={StaticResource BoolToVis}}" />
-                            <TextBlock Text="{Binding NotificationInitial}" FontSize="15" FontWeight="SemiBold"
+                            <TextBlock Text="{Binding NotificationInitial}" FontSize="{StaticResource FontSizeXl}" FontWeight="SemiBold"
                                        Foreground="{DynamicResource AccentBrush}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Visibility="{Binding HasNotificationIcon, Converter={StaticResource InverseBoolToVis}}" />
                         </Grid>
                     </Border>
                     <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding NotificationApp}" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                        <TextBlock Text="{Binding NotificationApp}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                    Foreground="{DynamicResource TertiaryTextBrush}" />
-                        <TextBlock Text="{Binding NotificationTitle}" FontFamily="{StaticResource UiFont}" FontSize="13"
+                        <TextBlock Text="{Binding NotificationTitle}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                    FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"
                                    TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
-                        <TextBlock Text="{Binding NotificationBody}" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                        <TextBlock Text="{Binding NotificationBody}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                    Foreground="{DynamicResource SecondaryTextBrush}"
                                    TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
                     </StackPanel>
@@ -1340,6 +1370,8 @@
                     <Border.RenderTransform>
                         <TransformGroup>
                             <ScaleTransform x:Name="MorphScale" />
+                            <!-- 换歌过渡专用：只动这一个，避免和 MorphScale 每帧写尺寸打架 -->
+                            <ScaleTransform x:Name="CoverSwap" CenterX="23" CenterY="23" />
                             <TranslateTransform x:Name="MorphShift" />
                         </TransformGroup>
                     </Border.RenderTransform>
@@ -1351,7 +1383,7 @@
                 <!-- 拖放高亮 -->
                 <Border x:Name="DropHint" Visibility="Collapsed" CornerRadius="18" Background="#3348A0FF"
                         BorderBrush="#FF6C8CFF" BorderThickness="2">
-                    <TextBlock Text="松手加入图标坞" FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                    <TextBlock Text="松手加入图标坞" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
             </Grid>
@@ -1371,10 +1403,10 @@
                     <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.45" Color="#000000" />
                 </Border.Effect>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="12"
+                    <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
                                Margin="0,0,8,0" />
-                    <TextBlock Text="{Binding VolumeText}" FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                    <TextBlock Text="{Binding VolumeText}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"
                                Width="36" VerticalAlignment="Center" />
                     <Border x:Name="VolumeHudTrack" Width="72" Height="4" CornerRadius="2"
@@ -1408,12 +1440,12 @@
                 <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.45" Color="#000000" />
             </Border.Effect>
             <StackPanel Orientation="Horizontal">
-                <TextBlock x:Name="AlertIcon" FontFamily="{StaticResource IconFont}" FontSize="14"
+                <TextBlock x:Name="AlertIcon" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                            Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock x:Name="AlertTitle" FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                    <TextBlock x:Name="AlertTitle" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
-                    <TextBlock x:Name="AlertDetail" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                    <TextBlock x:Name="AlertDetail" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,1,0,0" />
                 </StackPanel>
             </StackPanel>
@@ -1437,17 +1469,17 @@
                 <Border Width="46" Height="32" CornerRadius="6" Background="{DynamicResource ControlBrush}"
                         Margin="0,0,10,0" ClipToBounds="True" VerticalAlignment="Center">
                     <Grid>
-                        <TextBlock x:Name="ClipIcon" Text="&#xE8C8;" FontFamily="{StaticResource IconFont}" FontSize="12"
+                        <TextBlock x:Name="ClipIcon" Text="&#xE8C8;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                    Foreground="{DynamicResource AccentBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <Image x:Name="ClipThumb" Stretch="UniformToFill" Visibility="Collapsed" />
                     </Grid>
                 </Border>
                 <StackPanel VerticalAlignment="Center" MaxWidth="330">
-                    <TextBlock x:Name="ClipPreview" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                    <TextBlock x:Name="ClipPreview" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
                                Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"
                                TextWrapping="NoWrap" />
-                    <TextBlock x:Name="ClipMeta" FontFamily="{StaticResource UiFont}" FontSize="9"
+                    <TextBlock x:Name="ClipMeta" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                Foreground="{DynamicResource TertiaryTextBrush}" Margin="0,1,0,0" />
                 </StackPanel>
             </StackPanel>
@@ -1470,13 +1502,13 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE7E8;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE7E8;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock x:Name="MenuAutoStartText" Grid.Column="1" Text="开机自启"
-                                       FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                                       FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock x:Name="MenuAutoStartCheck" Grid.Column="2" Text="&#xE73E;"
-                                       FontFamily="{StaticResource IconFont}" FontSize="11"
+                                       FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeMd}"
                                        Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
                                        Visibility="Collapsed" />
                         </Grid>
@@ -1488,10 +1520,10 @@
                                 <ColumnDefinition Width="20" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="1" Text="设置…" FontFamily="{StaticResource UiFont}"
-                                       FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}"
+                                       FontSize="{StaticResource FontSizeLg}" Foreground="{DynamicResource PrimaryTextBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -1504,32 +1536,32 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE916;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE916;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="1" Text="专注" FontFamily="{StaticResource UiFont}" FontSize="11.5"
+                            <TextBlock Grid.Column="1" Text="专注" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeMd}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Border Width="26" Height="19" CornerRadius="9.5" Background="{DynamicResource ControlBrush}"
                                         Cursor="Hand" Tag="25" MouseLeftButtonUp="FocusStart_Click" ToolTip="专注 25 分钟">
-                                    <TextBlock Text="25" FontFamily="{StaticResource UiFont}" FontSize="9"
+                                    <TextBlock Text="25" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <Border Width="26" Height="19" CornerRadius="9.5" Background="{DynamicResource ControlBrush}"
                                         Cursor="Hand" Tag="50" MouseLeftButtonUp="FocusStart_Click" Margin="4,0,0,0" ToolTip="专注 50 分钟">
-                                    <TextBlock Text="50" FontFamily="{StaticResource UiFont}" FontSize="9"
+                                    <TextBlock Text="50" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <Border Width="26" Height="19" CornerRadius="9.5" Background="{DynamicResource ControlBrush}"
                                         Cursor="Hand" Tag="5" MouseLeftButtonUp="FocusStart_Click" Margin="4,0,0,0" ToolTip="休息 5 分钟">
-                                    <TextBlock Text="5" FontFamily="{StaticResource UiFont}" FontSize="9"
+                                    <TextBlock Text="5" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                Foreground="{DynamicResource PrimaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <Border Width="26" Height="19" CornerRadius="9.5" Background="{DynamicResource TrackBrush}"
                                         Cursor="Hand" Tag="stop" MouseLeftButtonUp="FocusStop_Click" Margin="6,0,0,0" ToolTip="结束计时">
-                                    <TextBlock Text="停" FontFamily="{StaticResource UiFont}" FontSize="9"
+                                    <TextBlock Text="停" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
                                                Foreground="{DynamicResource SecondaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
@@ -1549,10 +1581,10 @@
                             </Grid.ColumnDefinitions>
                             <Ellipse Width="9" Height="9" Fill="#6C8CFF" VerticalAlignment="Center" />
                             <TextBlock x:Name="MenuThemeObsidianText" Grid.Column="1" Text="曜石"
-                                       FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                                       FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock x:Name="MenuThemeObsidianCheck" Grid.Column="2" Text="&#xE73E;"
-                                       FontFamily="{StaticResource IconFont}" FontSize="11"
+                                       FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeMd}"
                                        Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
                                        Visibility="Collapsed" />
                         </Grid>
@@ -1566,10 +1598,10 @@
                             </Grid.ColumnDefinitions>
                             <Ellipse Width="9" Height="9" Fill="#6EE7D8" VerticalAlignment="Center" />
                             <TextBlock x:Name="MenuThemeGraphiteText" Grid.Column="1" Text="石墨"
-                                       FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                                       FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock x:Name="MenuThemeGraphiteCheck" Grid.Column="2" Text="&#xE73E;"
-                                       FontFamily="{StaticResource IconFont}" FontSize="11"
+                                       FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeMd}"
                                        Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
                                        Visibility="Collapsed" />
                         </Grid>
@@ -1583,10 +1615,10 @@
                             </Grid.ColumnDefinitions>
                             <Ellipse Width="9" Height="9" Fill="#3D6BAA" VerticalAlignment="Center" />
                             <TextBlock x:Name="MenuThemePorcelainText" Grid.Column="1" Text="瓷白"
-                                       FontFamily="{StaticResource UiFont}" FontSize="12.5"
+                                       FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock x:Name="MenuThemePorcelainCheck" Grid.Column="2" Text="&#xE73E;"
-                                       FontFamily="{StaticResource IconFont}" FontSize="11"
+                                       FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeMd}"
                                        Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
                                        Visibility="Collapsed" />
                         </Grid>
@@ -1601,10 +1633,10 @@
                                 <ColumnDefinition Width="20" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="1" Text="日历" FontFamily="{StaticResource UiFont}"
-                                       FontSize="12.5" Foreground="{DynamicResource PrimaryTextBrush}"
+                                       FontSize="{StaticResource FontSizeLg}" Foreground="{DynamicResource PrimaryTextBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -1614,10 +1646,10 @@
                                 <ColumnDefinition Width="20" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="1" Text="刷新天气" FontFamily="{StaticResource UiFont}"
-                                       FontSize="12.5" Foreground="{DynamicResource SecondaryTextBrush}"
+                                       FontSize="{StaticResource FontSizeLg}" Foreground="{DynamicResource SecondaryTextBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -1627,10 +1659,10 @@
                                 <ColumnDefinition Width="20" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE74D;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE74D;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="1" Text="清空图标坞" FontFamily="{StaticResource UiFont}"
-                                       FontSize="12.5" Foreground="{DynamicResource SecondaryTextBrush}"
+                                       FontSize="{StaticResource FontSizeLg}" Foreground="{DynamicResource SecondaryTextBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -1640,10 +1672,10 @@
                                 <ColumnDefinition Width="20" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE8B7;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE8B7;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="1" Text="打开数据目录" FontFamily="{StaticResource UiFont}"
-                                       FontSize="12.5" Foreground="{DynamicResource SecondaryTextBrush}"
+                                       FontSize="{StaticResource FontSizeLg}" Foreground="{DynamicResource SecondaryTextBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -1653,10 +1685,10 @@
                                 <ColumnDefinition Width="20" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE7C3;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE7C3;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="1" Text="打开日志" FontFamily="{StaticResource UiFont}"
-                                       FontSize="12.5" Foreground="{DynamicResource SecondaryTextBrush}"
+                                       FontSize="{StaticResource FontSizeLg}" Foreground="{DynamicResource SecondaryTextBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -1668,10 +1700,10 @@
                                 <ColumnDefinition Width="20" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE711;" FontFamily="{StaticResource IconFont}" FontSize="12.5"
+                            <TextBlock Text="&#xE711;" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeLg}"
                                        Foreground="#FFFF7A7A" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="1" Text="退出" FontFamily="{StaticResource UiFont}"
-                                       FontSize="12.5" Foreground="#FFFF7A7A" VerticalAlignment="Center" />
+                                       FontSize="{StaticResource FontSizeLg}" Foreground="#FFFF7A7A" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -1689,12 +1721,12 @@
                 <StackPanel>
                     <Border CornerRadius="6" Padding="9,6" Cursor="Hand" Background="Transparent"
                             MouseLeftButtonUp="LauncherMenu_Reveal_Click">
-                        <TextBlock Text="打开文件位置" FontFamily="{StaticResource UiFont}" FontSize="11.5"
+                        <TextBlock Text="打开文件位置" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeMd}"
                                    Foreground="{DynamicResource PrimaryTextBrush}" />
                     </Border>
                     <Border CornerRadius="6" Padding="9,6" Cursor="Hand" Background="Transparent"
                             MouseLeftButtonUp="LauncherMenu_Remove_Click">
-                        <TextBlock Text="从图标坞移除" FontFamily="{StaticResource UiFont}" FontSize="11.5"
+                        <TextBlock Text="从图标坞移除" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeMd}"
                                    Foreground="#FFFF7A7A" />
                     </Border>
                 </StackPanel>

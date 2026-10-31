@@ -273,7 +273,52 @@ public static class ThemeManager
             var brush = new SolidColorBrush(color);
             brush.Freeze();
             resources["AccentBrush"] = brush;
+            resources["AccentBloomBrush"] = CreateBloom(color, _bloomStrength);
         }
+    }
+
+    /// <summary>accent bloom 的强度系数（0–1）。媒体页 0.12，其余页 0.07。</summary>
+    private static double _bloomStrength = 0.07;
+
+    /// <summary>
+    /// 切换 bloom 强度：只在页面换类（媒体 ↔ 其他）时调用，内部会重发一次 brush。
+    /// 用强度系数而不是换刷子类型，保证强调色过渡期间 bloom 也一起渐变。
+    /// </summary>
+    public static void SetBloomStrength(double strength)
+    {
+        strength = Math.Clamp(strength, 0, 1);
+        if (Math.Abs(strength - _bloomStrength) < 0.001)
+        {
+            return;
+        }
+
+        _bloomStrength = strength;
+        PublishAccent(_currentAccent);
+    }
+
+    /// <summary>
+    /// 强调色光晕：圆心压在底部中段，往四周透明 —— 相当于「光从内容里透出来」，
+    /// 而不是给整块面板染色。alpha 直接乘强度，折叠/展开都按比例缩放。
+    /// </summary>
+    private static Brush CreateBloom(Color accent, double strength)
+    {
+        var bloom = new RadialGradientBrush
+        {
+            Center = new System.Windows.Point(0.5, 0.96),
+            GradientOrigin = new System.Windows.Point(0.5, 0.96),
+            RadiusX = 0.78,
+            RadiusY = 1.05
+        };
+
+        double peak = Math.Clamp(strength, 0, 1) * 255;
+        bloom.GradientStops.Add(new GradientStop(
+            Color.FromArgb((byte)Math.Round(peak * 0.55), accent.R, accent.G, accent.B), 0.0));
+        bloom.GradientStops.Add(new GradientStop(
+            Color.FromArgb((byte)Math.Round(peak * 0.16), accent.R, accent.G, accent.B), 0.46));
+        bloom.GradientStops.Add(new GradientStop(
+            Color.FromArgb(0, accent.R, accent.G, accent.B), 1.0));
+        bloom.Freeze();
+        return bloom;
     }
 
     private static bool ColorsClose(Color a, Color b)

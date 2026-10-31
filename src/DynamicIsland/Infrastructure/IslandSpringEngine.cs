@@ -182,8 +182,10 @@ internal sealed class IslandSpringEngine : IDisposable
         // 掉帧时钳制步长，避免弹簧数值爆炸
         dt = Math.Clamp(dt, 0.001, 0.05);
 
-        // 固定子步长积分，保证不同刷新率下表现一致
-        int steps = Math.Max(1, (int)Math.Ceiling(dt / 0.004));
+        // 固定子步长积分，保证不同刷新率下表现一致。
+        // 1ms 子步：4ms 时刚度 450 的档位在 dt 抖动下会有可见的数值噪声，
+        // 1ms 能把它压到看不见，代价只是每次 Rendering 多算 2–4 次简单乘法。
+        int steps = Math.Max(1, (int)Math.Ceiling(dt / 0.001));
         double sub = dt / steps;
         for (int i = 0; i < steps; i++)
         {

@@ -489,6 +489,9 @@ public partial class MainWindow : Window
             EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
         };
 
+        // 呼吸动画 30fps 足够（周期 1.8s，肉眼分辨不出），别让它把空闲帧率拉满
+        Timeline.SetDesiredFrameRate(pulse, 30);
+
         MicDot.BeginAnimation(OpacityProperty, pulse);
         CameraDot.BeginAnimation(OpacityProperty, pulse);
     }
@@ -1647,6 +1650,10 @@ public partial class MainWindow : Window
             RepeatBehavior = RepeatBehavior.Forever
         };
 
+        // 跑马灯是唯一"永远在跑"的动画：不限帧的话高刷屏会按 165/180Hz 一直合成，
+        // 折叠静置时的空转帧全来自它。40fps 对滚动文字已经够顺，再低会看出台阶。
+        Timeline.SetDesiredFrameRate(animation, 40);
+
         animation.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.9))));
         animation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.9 + scroll))));
         animation.KeyFrames.Add(new LinearDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.4 + scroll))));
@@ -1674,6 +1681,48 @@ public partial class MainWindow : Window
         var fade = new DoubleAnimation(0.3, 1, TimeSpan.FromMilliseconds(320));
         CollapsedTitleText?.BeginAnimation(OpacityProperty, fade);
         ExpandedTitleText?.BeginAnimation(OpacityProperty, fade);
+
+        AnimateCoverSwap();
+        AnimateControlsSwap();
+    }
+
+    /// <summary>
+    /// 换歌过渡（轻量版）：封面向内收一下再弹回、同时淡入，控制区也跟着淡入。
+    /// 不做真 3D 翻转 —— 46px 的方块上收益抵不上代价，收放已经足够表达「换了一张」。
+    /// </summary>
+    private void AnimateCoverSwap()
+    {
+        var shrink = new DoubleAnimationUsingKeyFrames
+        {
+            Duration = TimeSpan.FromMilliseconds(260),
+            FillBehavior = FillBehavior.Stop
+        };
+        shrink.KeyFrames.Add(new EasingDoubleKeyFrame(0.86, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(90)))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        });
+        shrink.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        });
+        CoverSwap.BeginAnimation(ScaleTransform.ScaleXProperty, shrink);
+        CoverSwap.BeginAnimation(ScaleTransform.ScaleYProperty, shrink);
+
+        var fade = new DoubleAnimation(0.45, 1, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        MorphCover.BeginAnimation(OpacityProperty, fade);
+    }
+
+    /// <summary>换歌时控制区跟着交叉淡入，避免新歌的按钮一下子跳出来。</summary>
+    private void AnimateControlsSwap()
+    {
+        var fade = new DoubleAnimation(0.35, 1, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        MediaControls.BeginAnimation(OpacityProperty, fade);
     }
 
     private void Tab_Click(object sender, MouseButtonEventArgs e)
@@ -2099,6 +2148,8 @@ public partial class MainWindow : Window
                 UpdateIslandHitRect();
             }
 
+            // bloom 跟着页面走：媒体页（含歌词）强一些，其他页弱一些
+            ThemeManager.SetBloomStrength(TabShowsMedia(_viewModel.ActiveTab) ? 0.12 : 0.07);
             StartTabTransition(_viewModel.ActiveTab);
             return;
         }

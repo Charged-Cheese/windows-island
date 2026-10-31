@@ -1,11 +1,23 @@
-﻿<Application x:Class="DynamicIsland.App"
+<Application x:Class="DynamicIsland.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:infra="clr-namespace:DynamicIsland.Infrastructure"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <FontFamily x:Key="UiFont">Segoe UI, Microsoft YaHei UI</FontFamily>
         <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+        <!-- ===== 字号阶梯（六档）=====
+             正文之外的尺寸都从这里取：Sm 辅助小字、Base 正文、Md 小标题、
+             Lg 标题、Xl 模块大数、Xxl 强调数字。图标字号（7.5/8/9）和
+             超大号（22/26/31，月历与大温度）保持各自硬编码，它们不参与排版节奏。 -->
+        <sys:Double x:Key="FontSizeSm">9.5</sys:Double>
+        <sys:Double x:Key="FontSizeBase">10.5</sys:Double>
+        <sys:Double x:Key="FontSizeMd">11.5</sys:Double>
+        <sys:Double x:Key="FontSizeLg">13</sys:Double>
+        <sys:Double x:Key="FontSizeXl">15</sys:Double>
+        <sys:Double x:Key="FontSizeXxl">17</sys:Double>
 
         <SolidColorBrush x:Key="IslandBgBrush" Color="#F20A0A0E" />
         <SolidColorBrush x:Key="IslandBorderBrush" Color="#22FFFFFF" />
