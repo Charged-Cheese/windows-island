@@ -1324,7 +1324,10 @@ public partial class MainWindow : Window
 
     // 滚轮累积：一格 = 100（鼠标一格是 120，触控板小步累积到 100 也算一格）
     private const int WheelStepThreshold = 100;
-    private const int WheelNavCooldown = 70;    // 原 130：冷却太长，快速连滚会丢拍
+
+    // 每页最短间隔：弹簧 155/24 的主段约 300ms、420ms 基本收敛，这个窗口内不再翻页，
+    // 确保每一页的动画都完整走完（截断弹簧会让高度和位移同时跳一下）。
+    private const int WheelNavCooldown = 420;
     private int _wheelAccum;
     private int _wheelPendingStep;
     private DateTime _lastWheelNav = DateTime.MinValue;
@@ -2207,19 +2210,6 @@ public partial class MainWindow : Window
         bool rapid = sinceLast < 220;
 
         BeginTabTransitionVisual();
-
-        // 「岛体先变形、内容后浮现」：切页瞬间把页内容全部收起，让 Grid 里没有子元素
-        // 参与测量，岛体高度就只靠 Border 自己走完；到位后再把目标页淡进来。
-        double morphDelayMs = 0;
-        if (!rapid)
-        {
-            (double _, double targetHeight) = SizeForTab((int)target);
-            double heightDelta = Math.Abs(targetHeight - _spring.Height);
-            HideTabContent();
-            morphDelayMs = Math.Clamp(120 + heightDelta * 0.9, 150, 330);
-            ScheduleTabReveal(TimeSpan.FromMilliseconds(morphDelayMs));
-        }
-
         ApplyTabTransition();
 
         // 跨多页（例如日历 5 → 媒体 0）：如果还走"连续位置弹簧"，中间会依次闪过
@@ -2236,24 +2226,19 @@ public partial class MainWindow : Window
             _tabVelocity = 0;
             ApplyTabTransition();
 
-            // 直接落位没有"滑入"：非 rapid 的淡入交给 RevealTabContent（内容要等高度先走完），
-            // rapid 连滚不等高度，直接补一次短淡入，避免内容硬切。
-            if (rapid)
+            // 直接落位没有"滑入"，补一次短淡入，避免内容硬切
+            FrameworkElement page = _tabPages[(int)target];
+            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(rapid ? 150 : 220))
             {
-                FrameworkElement page = _tabPages[(int)target];
-                var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150))
-                {
-                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-                    // 结束后恢复 ApplyTabTransition 写入的基础值；不使用 Completed
-                    // 回调强制设为 1，否则过期回调会把已经离开的页面重新显示。
-                    FillBehavior = FillBehavior.Stop
-                };
-                page.BeginAnimation(UIElement.OpacityProperty, fade);
-            }
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                // 结束后恢复 ApplyTabTransition 写入的基础值；不使用 Completed
+                // 回调强制设为 1，否则过期回调会把已经离开的页面重新显示。
+                FillBehavior = FillBehavior.Stop
+            };
+            page.BeginAnimation(UIElement.OpacityProperty, fade);
 
-            // 硬落位没有弹簧收敛帧可等，用一次性延时把阴影挂回去（内容浮现之后再回阴影）
-            ScheduleEndTabTransitionVisual(TimeSpan.FromMilliseconds(
-                rapid ? 140 : morphDelayMs + 140));
+            // 硬落位没有弹簧收敛帧可等，用一次性延时把阴影挂回去
+            ScheduleEndTabTransitionVisual(TimeSpan.FromMilliseconds(rapid ? 140 : 220));
             return;
         }
 
@@ -2329,67 +2314,6 @@ public partial class MainWindow : Window
         }
     }
 
-    // ---------------- 切页时的高度过渡 ----------------
-    private bool _tabContentHidden;
-    private DispatcherTimer? _tabRevealTimer;
-
-    /// <summary>
-    /// 切页瞬间把所有页收起。岛体高度每帧都在写，页面藏着的时候 Grid 没有子元素
-    /// 参与测量，这一步是整段变形里最便宜的状态。
-    /// </summary>
-    private void HideTabContent()
-    {
-        _tabContentHidden = true;
-        foreach (FrameworkElement page in _tabPages)
-        {
-            page.BeginAnimation(UIElement.OpacityProperty, null);
-            page.Visibility = Visibility.Collapsed;
-            page.IsHitTestVisible = false;
-        }
-    }
-
-    private void ScheduleTabReveal(TimeSpan delay)
-    {
-        _tabRevealTimer?.Stop();
-        var timer = new DispatcherTimer { Interval = delay };
-        timer.Tick += (_, _) =>
-        {
-            timer.Stop();
-            if (ReferenceEquals(_tabRevealTimer, timer))
-            {
-                _tabRevealTimer = null;
-            }
-
-            RevealTabContent();
-        };
-        _tabRevealTimer = timer;
-        timer.Start();
-    }
-
-    /// <summary>
-    /// 高度变形走完后把目标页淡进来。连滚（rapid）不进这里，它走 StartTabTransition 里的短淡入。
-    /// </summary>
-    private void RevealTabContent()
-    {
-        if (!_tabContentHidden)
-        {
-            return;
-        }
-
-        _tabContentHidden = false;
-        FrameworkElement target = _tabPages[(int)_tabTarget];
-        ApplyTabTransition();
-
-        target.Visibility = Visibility.Visible;
-        target.IsHitTestVisible = true;
-        var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-            FillBehavior = FillBehavior.Stop
-        };
-        target.BeginAnimation(UIElement.OpacityProperty, fade);
-    }
-
     /// <summary>
     /// 把连续的 tab 位置落到画面上：每个页面按"与当前位置的距离"水平滑动、缩放、淡出；
     /// 分页点同样连续变化，速度快时拉长一点，像被甩出去再弹回来。
@@ -2405,21 +2329,6 @@ public partial class MainWindow : Window
 
         for (int i = 0; i < _tabPages.Length; i++)
         {
-            FrameworkElement page = _tabPages[i];
-
-            // 内容给高度变形让位：所有页收起，Grid 里没有子元素参与测量，
-            // 岛体高度就能纯靠 Border 走完，不会被页内容重排拖住。
-            if (_tabContentHidden)
-            {
-                if (page.Visibility != Visibility.Collapsed)
-                {
-                    page.Visibility = Visibility.Collapsed;
-                    page.IsHitTestVisible = false;
-                }
-
-                continue;
-            }
-
             double distance = Math.Min(Math.Abs(i - _tabPosition), 1.0);
             double eased = distance * distance * (3 - 2 * distance);
 
@@ -2434,6 +2343,8 @@ public partial class MainWindow : Window
             // 水平滑动：下一页从右边进来、上一页往左边出去，方向与滚轮一致。
             // 位移只作用在页面自己的 RenderTransform 上，不参与布局，不会挤压内容。
             double offsetX = (i - _tabPosition) * 36;
+
+            FrameworkElement page = _tabPages[i];
 
             // 只有当前页和左右邻页在动。其余页彻底收起来，既省掉每帧的 8 次属性写入，
             // 也让 WPF 不必为一个透明全尺寸子树建合成层——折叠动画期间这才是主要开销。
