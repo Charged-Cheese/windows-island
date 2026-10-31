@@ -160,7 +160,7 @@ public partial class MainWindow : Window
     // 队列执行器自己改 ActiveTab 时把通知打回去，否则会再入队一次。
     private bool _tabSyncingTarget;
 
-    private const double TabTransitionMs = 280.0;
+    private const double TabTransitionMs = 240.0;
     private const int TabQueueLimit = 3;
     private const double TabSlideDistance = 34.0;
     private bool _privacyPulseRunning;
@@ -1326,22 +1326,16 @@ public partial class MainWindow : Window
         RecomputeState();
     }
 
-    // 滚轮触发阈值。鼠标一格是 120（WHEEL_DELTA），但触控板一次滑动会被拆成很多
-    // 小 delta（常见 ±1~±10），所以阈值取 60：鼠标一格必然过线，触控板攒两次也过线。
-    private const int WheelTriggerDelta = 60;
+    // 一次"有效刻度"的累积阈值。鼠标一格是 120（WHEEL_DELTA），触控板的碎步
+    // 常见 ±1~±10，攒到一个刻度（120）才算一次操作。
+    private const int WheelTriggerDelta = 120;
 
-    // 两次 wheel 事件间隔超过这个值就算"新手势"；否则算同一次连续滚动
-    // （触控板一整段滑动、鼠标快速连滚几格都会落在同一个手势里）。
-    private const int WheelGestureGapMs = 250;
-
-    // 动画结束后的额外保护时间：这段时间内的滚轮事件一律丢弃，避免"动画刚播完
-    // 又被上一次滚动的余波推着翻下一页"。
-    private const int WheelAfterAnimGuardMs = 150;
+    // 动画期间最多记住这么多个刻度（带方向）。快速连滚 3 格 = 当前 1 页 + 待执行 2 页，
+    // 再多就丢掉——不是队列，只是"别让手快的人白滚"。
+    private const int WheelPendingLimit = 2;
 
     private int _wheelAccum;
-    private DateTime _lastWheelAt = DateTime.MinValue;
-    private bool _wheelGestureFired;
-    private DateTime _tabUnlockedAt = DateTime.MinValue;
+    private int _wheelPendingSteps;
     private DateTime _lastTabTransition = DateTime.MinValue;
     private bool _shadowFaded;
 
@@ -1351,35 +1345,18 @@ public partial class MainWindow : Window
     /// <summary>
     /// 滚轮入口（岛体 MouseWheel 与列表 ScrollViewer 的 PreviewMouseWheel 都汇到这里）。
     ///
-    /// 规则（一次有效滚动手势最多翻一页）：
-    /// 1. 距上一次 wheel 超过 250ms = 新手势，清掉遗留的累积值与"已触发"标记；
-    /// 2. 同一手势里已经翻过页 → 后续事件全部丢弃（不排队、不补翻）；
-    /// 3. 动画期间 / 动画结束后 150ms 保护期内 → 丢弃；
-    /// 4. 只有累积跨过 WheelTriggerDelta 且方向明确时，才发出**一次**单页请求。
-    /// 不再把 delta 折算成多页，也不把事件放进队列等待播放。
+    /// 判定规则（区分"独立刻度"与"同一刻度的重复事件"）：
+    /// 1. 累积到 WheelTriggerDelta（120）才算一次有效刻度——鼠标一格刚好一次，
+    ///    触控板十几个碎步才凑一次，所以不会被高频细碎事件刷成连翻；
+    /// 2. 触发后把累积值清零（余量丢弃），同一个刻度不会二次触发；
+    /// 3. 动画中不丢弃也不阻塞：记一个带方向的待执行刻度（上限 2），动画一结束立刻接着播；
+    /// 4. 没有任何"动画后冷却/手势锁"——独立刻度的下一次事件立刻响应。
     /// </summary>
     private void HandleWheel(int delta)
     {
         // 展开态滚轮切页（与右侧分页点同一套页面），折叠态仍调音量。
         if (_state == IslandState.Expanded)
         {
-            DateTime now = DateTime.UtcNow;
-            bool newGesture = (now - _lastWheelAt).TotalMilliseconds > WheelGestureGapMs;
-            _lastWheelAt = now;
-
-            if (newGesture)
-            {
-                _wheelGestureFired = false;
-                _wheelAccum = 0;
-            }
-
-            // 同一手势里翻过一次就够了；动画中与保护期内的输入一律丢弃。
-            if (_wheelGestureFired || _tabAnimating || now < _tabUnlockedAt)
-            {
-                _wheelAccum = 0;
-                return;
-            }
-
             _wheelAccum += delta;
             if (Math.Abs(_wheelAccum) < WheelTriggerDelta)
             {
@@ -1389,7 +1366,13 @@ public partial class MainWindow : Window
             // 向上滚（正）= 上一页，向下滚（负）= 下一页。
             int dir = _wheelAccum > 0 ? -1 : 1;
             _wheelAccum = 0;
-            _wheelGestureFired = true;
+
+            if (_tabAnimating)
+            {
+                _wheelPendingSteps = Math.Clamp(_wheelPendingSteps + dir, -WheelPendingLimit, WheelPendingLimit);
+                return;
+            }
+
             RequestWheelStep(dir);
             return;
         }
@@ -1400,8 +1383,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 滚轮专用：直接播一页，不经过队列。到边界就停（本次手势也不再重试），
-    /// 动画期间来不了这里——HandleWheel 已经挡掉。
+    /// 滚轮专用：直接播一页，不经过队列。到边界就停。
+    /// 只从 HandleWheel（空闲态）和 FinishTabStep（消费待执行刻度）调用。
     /// </summary>
     private void RequestWheelStep(int dir)
     {
@@ -2384,14 +2367,19 @@ public partial class MainWindow : Window
         ApplyTabTransition();
     }
 
-    /// <summary>一步播完：队列里还有就立刻接下一步，否则收尾（退订渲染、阴影淡回）。</summary>
+    /// <summary>一步播完：先接上动画期间攒下的滚轮刻度，再看显式跳转队列，都没有就收尾。</summary>
     private void FinishTabStep()
     {
         _tabAnimating = false;
 
-        // 动画刚结束的 150ms 内不接受滚轮：这是"滚动停止后不再自己往后走"的保险，
-        // 也是触控板惯性尾巴不会把页面接着推下去的原因。
-        _tabUnlockedAt = DateTime.UtcNow.AddMilliseconds(WheelAfterAnimGuardMs);
+        // 动画期间用户又滚了：立刻接着播，不加任何冷却——这是"快速滚动能连续翻页"的关键。
+        if (_wheelPendingSteps != 0)
+        {
+            int dir = Math.Sign(_wheelPendingSteps);
+            _wheelPendingSteps -= dir;
+            RequestWheelStep(dir);
+            return;
+        }
 
         if (_tabQueue.Count > 0)
         {
