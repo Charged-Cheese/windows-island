@@ -105,18 +105,16 @@ public partial class MainWindow : Window
     /// </summary>
     private static readonly (double Width, double Height)[] TabSizes =
     {
-        (ExpandedWidth, ExpandedHeight),  // 0 媒体
+        (ExpandedWidth, ExpandedHeight),  // 0 媒体：封面 + 进度 + 歌词/频谱
         (ExpandedWidth, 176),             // 1 天气：大温度一行 + 指标 + 预报
         (ExpandedWidth, ExpandedHeight),  // 2 硬件：2×2 卡片
         (ExpandedWidth, 156),             // 3 图标坞：两行色块
-        (ExpandedWidth, 236),             // 4 通知：固定行高列表
-        (ExpandedWidth, ExpandedHeight),  // 5 歌词
-        (ExpandedWidth, 236),             // 6 剪贴板：固定行高列表
-        (460, 320)                        // 7 日历：左侧月历 + 右侧详情
+        (ExpandedWidth, 236),             // 4 动态：通知 / 剪贴板
+        (460, 320)                        // 5 日历：左侧月历 + 右侧详情
     };
 
-    /// <summary>音乐 / 歌词页才在顶部显示媒体条；其它功能页整块让给内容。</summary>
-    private static bool TabShowsMedia(int tab) => tab is 0 or 5;
+    /// <summary>只有媒体页在顶部显示媒体条；其它功能页整块让给内容。</summary>
+    private static bool TabShowsMedia(int tab) => tab is 0;
 
     private static (double Width, double Height) SizeForTab(int tab)
         => tab >= 0 && tab < TabSizes.Length ? TabSizes[tab] : TabSizes[0];
@@ -226,13 +224,12 @@ public partial class MainWindow : Window
 
         _tabPages = new FrameworkElement[]
         {
-            MediaPage, WeatherPage, HardwarePage, LauncherPage,
-            NotificationPage, LyricsPage, ClipboardPage, CalendarPage
+            MediaPage, WeatherPage, HardwarePage, LauncherPage, NotificationPage, CalendarPage
         };
         _tabDots = new Border[]
         {
-            TabDotIndicator0, TabDotIndicator1, TabDotIndicator2, TabDotIndicator3,
-            TabDotIndicator4, TabDotIndicator5, TabDotIndicator6, TabDotIndicator7
+            TabDotIndicator0, TabDotIndicator1, TabDotIndicator2,
+            TabDotIndicator3, TabDotIndicator4, TabDotIndicator5
         };
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         ApplyTabTransition();
@@ -735,7 +732,7 @@ public partial class MainWindow : Window
                 else if (head.StartsWith("tab:", StringComparison.Ordinal) &&
                     int.TryParse(head[4..], out int index))
                 {
-                    _viewModel.ActiveTab = Math.Clamp(index, 0, 7);
+                    _viewModel.ActiveTab = Math.Clamp(index, 0, 5);
                     if (_viewModel.ActiveTab == 4)
                     {
                         _viewModel.SyncNotificationHistory();
@@ -1212,7 +1209,7 @@ public partial class MainWindow : Window
     private void PillCalendar_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        _viewModel.ActiveTab = 7;
+        _viewModel.ActiveTab = 5;
         SetState(IslandState.Expanded);
     }
 
@@ -1220,7 +1217,7 @@ public partial class MainWindow : Window
     private void MenuCalendar_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        _viewModel.ActiveTab = 7;
+        _viewModel.ActiveTab = 5;
         HideContextMenu();
         SetState(IslandState.Expanded);
     }
@@ -1344,7 +1341,7 @@ public partial class MainWindow : Window
             _wheelAccum = 0;
             _lastWheelNav = now;
 
-            int next = Math.Clamp(_viewModel.ActiveTab + step, 0, 7);
+            int next = Math.Clamp(_viewModel.ActiveTab + step, 0, 5);
             if (next != _viewModel.ActiveTab)
             {
                 _viewModel.ActiveTab = next;
@@ -1669,6 +1666,30 @@ public partial class MainWindow : Window
     {
         e.Handled = true;
         _viewModel.ClearNotifications();
+    }
+
+    /// <summary>动态页分段切换：通知 / 剪贴板，共用一个分页点。</summary>
+    private void DynamicMode_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is FrameworkElement { Tag: string mode })
+        {
+            _viewModel.DynamicMode = mode;
+        }
+    }
+
+    /// <summary>动态页右上角「清空」：按当前分段清对应列表。</summary>
+    private void ClearDynamic_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (_viewModel.IsDynamicClipboard)
+        {
+            _viewModel.ClearClipboardCommand.Execute(null);
+        }
+        else
+        {
+            _viewModel.ClearNotifications();
+        }
     }
 
     private void Clipboard_Click(object sender, MouseButtonEventArgs e)

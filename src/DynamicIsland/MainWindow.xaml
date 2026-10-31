@@ -896,12 +896,66 @@
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <Border Width="3" Height="11" CornerRadius="1.5"
                                                     Background="{DynamicResource AccentBrush}" Opacity="0.9" />
-                                            <TextBlock Text="通知" Style="{StaticResource PageTitleStyle}"
+                                            <TextBlock Text="动态" Style="{StaticResource PageTitleStyle}"
                                                        Margin="7,0,0,0" VerticalAlignment="Center" />
+
+                                            <!-- 分段 chip：通知 / 剪贴板（同一页两种内容，互斥显示） -->
+                                            <Border Margin="11,0,0,0" Padding="7,2.5" CornerRadius="7" Cursor="Hand"
+                                                    Tag="notifications" MouseLeftButtonUp="DynamicMode_Click">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsDynamicNotifications}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                                <Setter Property="Opacity" Value="0.90" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="通知" FontFamily="{StaticResource UiFont}" FontSize="9">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsDynamicNotifications}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource IslandBgBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                            <Border Margin="4,0,0,0" Padding="7,2.5" CornerRadius="7" Cursor="Hand"
+                                                    Tag="clipboard" MouseLeftButtonUp="DynamicMode_Click">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsDynamicClipboard}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                                <Setter Property="Opacity" Value="0.90" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="剪贴板" FontFamily="{StaticResource UiFont}" FontSize="9">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsDynamicClipboard}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource IslandBgBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
                                         </StackPanel>
                                         <Border HorizontalAlignment="Right" Style="{StaticResource GhostButtonStyle}"
-                                                MouseLeftButtonUp="ClearNotifications_Click"
-                                                Visibility="{Binding HasNotifications, Converter={StaticResource BoolToVis}}">
+                                                MouseLeftButtonUp="ClearDynamic_Click"
+                                                Visibility="{Binding HasDynamicItems, Converter={StaticResource BoolToVis}}">
                                             <TextBlock Text="清空" FontFamily="{StaticResource UiFont}" FontSize="9.5"
                                                        Foreground="{DynamicResource SecondaryTextBrush}" />
                                         </Border>
@@ -911,12 +965,23 @@
                                                FontFamily="{StaticResource UiFont}" FontSize="8.5"
                                                Foreground="{DynamicResource TertiaryTextBrush}"
                                                Margin="4,0,0,3" TextTrimming="CharacterEllipsis"
-                                               Visibility="{Binding HasNotifications, Converter={StaticResource BoolToVis}}" />
+                                               Visibility="{Binding ShowNotificationPanel, Converter={StaticResource BoolToVis}}" />
+
+                                    <TextBlock Grid.Row="1" Text="{Binding ClipboardStatus}"
+                                               FontFamily="{StaticResource UiFont}" FontSize="8.5"
+                                               Foreground="{DynamicResource TertiaryTextBrush}"
+                                               Margin="4,0,0,3" TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding ShowClipboardPanel, Converter={StaticResource BoolToVis}}" />
 
                                     <TextBlock Grid.Row="2" Text="暂无通知" FontFamily="{StaticResource UiFont}" FontSize="10.5"
                                                Foreground="{DynamicResource TertiaryTextBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Visibility="{Binding HasNotifications, Converter={StaticResource InverseBoolToVis}}" />
+                                               Visibility="{Binding ShowNotificationEmpty, Converter={StaticResource BoolToVis}}" />
+
+                                    <TextBlock Grid.Row="2" Text="暂无剪贴记录" FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                                               Foreground="{DynamicResource TertiaryTextBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Visibility="{Binding ShowClipboardEmpty, Converter={StaticResource BoolToVis}}" />
 
                                     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,4"
                                                   Style="{StaticResource HistoryScrollViewerStyle}"
@@ -924,7 +989,7 @@
                                                   PreviewMouseWheel="ContentScroll_PreviewMouseWheel"
                                                   Thumb.DragStarted="HistoryScroll_DragStarted"
                                                   Thumb.DragCompleted="HistoryScroll_DragCompleted"
-                                                  Visibility="{Binding HasNotifications, Converter={StaticResource BoolToVis}}">
+                                                  Visibility="{Binding ShowNotificationPanel, Converter={StaticResource BoolToVis}}">
                                         <ItemsControl ItemsSource="{Binding Notifications}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -980,91 +1045,13 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </ScrollViewer>
-                                </Grid>
-
-                                <!-- 歌词页：大字 + karaoke 擦除 -->
-                                <Grid x:Name="LyricsPage" RenderTransformOrigin="0.5,0.5">
-                                    <Grid.RenderTransform>
-                                        <TransformGroup>
-                                            <ScaleTransform />
-                                            <TranslateTransform />
-                                        </TransformGroup>
-                                    </Grid.RenderTransform>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-
-                                    <Grid VerticalAlignment="Center">
-                                        <StackPanel Visibility="{Binding HasLyrics, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="{Binding LyricPrevious}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="10" Foreground="{DynamicResource TertiaryTextBrush}"
-                                                       TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
-                                            <TextBlock Text="{Binding LyricCurrent}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="17" FontWeight="SemiBold"
-                                                       Foreground="{Binding LyricCurrentBrush}"
-                                                       TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"
-                                                       Margin="0,4,0,4" />
-                                            <TextBlock Text="{Binding LyricNext}" FontFamily="{StaticResource UiFont}"
-                                                       FontSize="10.5" Foreground="{DynamicResource SecondaryTextBrush}"
-                                                       TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
-                                        </StackPanel>
-                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Visibility="{Binding HasLyrics, Converter={StaticResource InverseBoolToVis}}">
-                                            <TextBlock Text="暂无歌词" FontFamily="{StaticResource UiFont}" FontSize="11"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" />
-                                            <TextBlock Text="播放时自动匹配歌词" FontFamily="{StaticResource UiFont}" FontSize="9"
-                                                       Foreground="{DynamicResource TertiaryTextBrush}" HorizontalAlignment="Center" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Grid>
-
-                                <!-- 剪贴板页：固定行高列表 + 分隔线 -->
-                                <Grid x:Name="ClipboardPage" RenderTransformOrigin="0.5,0.5">
-                                    <Grid.RenderTransform>
-                                        <TransformGroup>
-                                            <ScaleTransform />
-                                            <TranslateTransform />
-                                        </TransformGroup>
-                                    </Grid.RenderTransform>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-
-                                    <Grid Grid.Row="0" Margin="1,0,1,4">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Border Width="3" Height="11" CornerRadius="1.5"
-                                                    Background="{DynamicResource AccentBrush}" Opacity="0.9" />
-                                            <TextBlock Text="剪贴板" Style="{StaticResource PageTitleStyle}"
-                                                       Margin="7,0,0,0" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <Border HorizontalAlignment="Right" Style="{StaticResource GhostButtonStyle}"
-                                                MouseLeftButtonUp="ClearClipboard_Click"
-                                                Visibility="{Binding HasClipboard, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="清空" FontFamily="{StaticResource UiFont}" FontSize="9.5"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
-                                        </Border>
-                                    </Grid>
-
-                                    <TextBlock Grid.Row="1" Text="{Binding ClipboardStatus}"
-                                               FontFamily="{StaticResource UiFont}" FontSize="8.5"
-                                               Foreground="{DynamicResource TertiaryTextBrush}"
-                                               Margin="4,0,0,3" TextTrimming="CharacterEllipsis"
-                                               Visibility="{Binding HasClipboard, Converter={StaticResource BoolToVis}}" />
-
-                                    <TextBlock Grid.Row="2" Text="暂无剪贴记录" FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                                               Foreground="{DynamicResource TertiaryTextBrush}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Visibility="{Binding HasClipboard, Converter={StaticResource InverseBoolToVis}}" />
-
-                                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,4"
                                                   Style="{StaticResource HistoryScrollViewerStyle}"
                                                   HorizontalScrollBarVisibility="Disabled"
                                                   PreviewMouseWheel="ContentScroll_PreviewMouseWheel"
                                                   Thumb.DragStarted="HistoryScroll_DragStarted"
                                                   Thumb.DragCompleted="HistoryScroll_DragCompleted"
-                                                  Visibility="{Binding HasClipboard, Converter={StaticResource BoolToVis}}">
+                                                  Visibility="{Binding ShowClipboardPanel, Converter={StaticResource BoolToVis}}">
                                         <ItemsControl ItemsSource="{Binding ClipboardItems}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -1338,22 +1325,6 @@
                         <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="5"
                                 MouseLeftButtonUp="Tab_Click">
                             <Border x:Name="TabDotIndicator5" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
-                                <Border.RenderTransform>
-                                    <ScaleTransform />
-                                </Border.RenderTransform>
-                            </Border>
-                        </Border>
-                        <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="6"
-                                MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator6" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
-                                <Border.RenderTransform>
-                                    <ScaleTransform />
-                                </Border.RenderTransform>
-                            </Border>
-                        </Border>
-                        <Border Width="14" Height="16" Background="Transparent" Cursor="Hand" Tag="7"
-                                MouseLeftButtonUp="Tab_Click">
-                            <Border x:Name="TabDotIndicator7" Width="4" Height="4" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{DynamicResource PrimaryTextBrush}" Opacity="0.25" RenderTransformOrigin="0.5,0.5">
                                 <Border.RenderTransform>
                                     <ScaleTransform />
                                 </Border.RenderTransform>

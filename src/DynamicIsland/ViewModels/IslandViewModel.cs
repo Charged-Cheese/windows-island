@@ -120,7 +120,6 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(IsHardwareTab));
                 OnPropertyChanged(nameof(IsLauncherTab));
                 OnPropertyChanged(nameof(IsNotificationTab));
-                OnPropertyChanged(nameof(IsLyricsTab));
             }
         }
     }
@@ -130,7 +129,56 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
     public bool IsHardwareTab => ActiveTab == 2;
     public bool IsLauncherTab => ActiveTab == 3;
     public bool IsNotificationTab => ActiveTab == 4;
-    public bool IsLyricsTab => ActiveTab == 5;
+
+    // ---------------- 动态页：通知 / 剪贴板 合并在同一页 ----------------
+
+    private string _dynamicMode = "notifications";
+
+    /// <summary>动态页当前分段：notifications / clipboard。</summary>
+    public string DynamicMode
+    {
+        get => _dynamicMode;
+        set
+        {
+            // 只认两个值，非法输入一律落回通知
+            string normalized = value == "clipboard" ? "clipboard" : "notifications";
+            if (_dynamicMode == normalized)
+            {
+                return;
+            }
+
+            _dynamicMode = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsDynamicNotifications));
+            OnPropertyChanged(nameof(IsDynamicClipboard));
+            RaiseDynamicPanels();
+        }
+    }
+
+    public bool IsDynamicNotifications => _dynamicMode == "notifications";
+
+    public bool IsDynamicClipboard => _dynamicMode == "clipboard";
+
+    /// <summary>动态页右上角「清空」是否显示：只看当前分段有没有内容。</summary>
+    public bool HasDynamicItems => IsDynamicNotifications ? HasNotifications : HasClipboard;
+
+    public bool ShowNotificationPanel => IsDynamicNotifications && HasNotifications;
+
+    public bool ShowNotificationEmpty => IsDynamicNotifications && !HasNotifications;
+
+    public bool ShowClipboardPanel => IsDynamicClipboard && HasClipboard;
+
+    public bool ShowClipboardEmpty => IsDynamicClipboard && !HasClipboard;
+
+    /// <summary>四个内容块互斥，任何一个来源变化都要一起重算。</summary>
+    private void RaiseDynamicPanels()
+    {
+        OnPropertyChanged(nameof(HasDynamicItems));
+        OnPropertyChanged(nameof(ShowNotificationPanel));
+        OnPropertyChanged(nameof(ShowNotificationEmpty));
+        OnPropertyChanged(nameof(ShowClipboardPanel));
+        OnPropertyChanged(nameof(ShowClipboardEmpty));
+    }
 
     // ---------------- 时钟 ----------------
 
@@ -532,6 +580,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _notificationCount, value))
             {
                 OnPropertyChanged(nameof(HasNotifications));
+                RaiseDynamicPanels();
             }
         }
     }
@@ -1671,6 +1720,7 @@ public sealed class IslandViewModel : ObservableObject, IDisposable
 
         OnPropertyChanged(nameof(HasClipboard));
         OnPropertyChanged(nameof(ClipboardStatus));
+        RaiseDynamicPanels();
     }
 
     private void CopyClipboard(object? parameter)

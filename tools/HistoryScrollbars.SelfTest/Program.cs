@@ -43,10 +43,17 @@ static void Run(string root)
         var style = (Style)resources["HistoryScrollViewerStyle"];
         int passed = 0;
 
-        foreach (string pageName in new[] { "NotificationPage", "ClipboardPage" })
+        // 通知与剪贴板已合并进同一个「动态」页，两套列表共用一套滚动条约束
+        var dynamicPage = document.Descendants(wpf + "Grid")
+            .Single(e => (string?)e.Attribute(x + "Name") == "NotificationPage");
+        var dynamicViewers = dynamicPage.Descendants(wpf + "ScrollViewer").ToList();
+        if (dynamicViewers.Count != 2)
+            throw new InvalidOperationException($"动态页应有两个列表，实际 {dynamicViewers.Count} 个");
+
+        foreach (string pageName in new[] { "通知列表", "剪贴板列表" })
         {
-            var declaration = document.Descendants().Single(e => (string?)e.Attribute(x + "Name") == pageName)
-                .Descendants(wpf + "ScrollViewer").Single();
+            string panel = pageName == "通知列表" ? "ShowNotificationPanel" : "ShowClipboardPanel";
+            var declaration = dynamicViewers.Single(v => (string?)v.Attribute("Visibility") is { } vis && vis.Contains(panel));
             Require((string?)declaration.Attribute("VerticalScrollBarVisibility") == "Auto", "未启用溢出滚动条");
             Require((string?)declaration.Attribute("Style") == "{StaticResource HistoryScrollViewerStyle}", "未使用已验证模板");
             Require((string?)declaration.Attribute("PreviewMouseWheel") == "ContentScroll_PreviewMouseWheel", "滚轮切页入口被改变");
