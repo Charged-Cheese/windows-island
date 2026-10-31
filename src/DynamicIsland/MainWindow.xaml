@@ -133,7 +133,8 @@
                 DragLeave="Island_DragLeave"
                 Drop="Island_Drop">
             <Border.Effect>
-                <DropShadowEffect BlurRadius="28" ShadowDepth="14" Opacity="0.40" Color="#04040A" />
+                <!-- 阴影尽量小：岛体高度每帧都在变，模糊半径直接决定每帧高斯重算的成本 -->
+                <DropShadowEffect BlurRadius="12" ShadowDepth="5" Opacity="0.38" Color="#04040A" />
             </Border.Effect>
 
             <Border.RenderTransform>
