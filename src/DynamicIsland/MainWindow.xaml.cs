@@ -142,19 +142,21 @@ public partial class MainWindow : Window
     private bool _fullscreenOverride;
     private bool _clipboardIgnoreNext;
 
-    // 页面切换：一个连续的弹簧位置驱动 5 个页面和右侧分页点
+    // 页面切换：连续页位置驱动 6 个页面和右侧分页点。
     private readonly FrameworkElement[] _tabPages;
     private readonly Border[] _tabDots;
 
-    // ---- 切页调度：单页计时动画 + 串行队列 ----
+    // ---- 点击：单页计时动画 + 队列；滚轮：连续追最新目标 ----
     // _tabPosition 是"页索引的浮点值"（0=媒体 … 5=日历），只写 RenderTransform，不参与布局。
-    // 每页固定 280ms，队列保证「一页播完再开下一页」，中间页一定完整可见——
-    // 这也是不允许"一次滚动直接改目标索引"的原因。
+    // 点击每页 240ms；滚轮不逐页停驻，允许中途更新目标并继承速度。
     private double _tabPosition;
     private bool _tabAnimating;
     private double _tabAnimFrom;
     private double _tabAnimTo;
-    private DateTime _tabAnimStart;
+    private long _tabAnimStart;
+    private bool _wheelGliding;
+    private double _wheelVelocity;
+    private long _wheelLastTick;
     private readonly List<int> _tabQueue = new();
 
     // 队列执行器自己改 ActiveTab 时把通知打回去，否则会再入队一次。
@@ -352,18 +354,14 @@ public partial class MainWindow : Window
     public IslandViewModel ViewModel => _viewModel;
 
     /// <summary>
-    /// 设置面板的动画风格：换算成刚度 / 阻尼乘数，同时作用于岛体尺寸弹簧与切页弹簧。
-    /// smooth 更接近临界阻尼（不回弹），bouncy 更容易 overshoot，snappy 更快。
-    /// 切页弹簧的基础值取接近临界（300/33，稳定时间约 240ms），
-    /// 保证滚轮翻页是柔和的滑动而不是来回弹。
+    /// 设置面板的动画风格作用于岛体尺寸；翻页保留独立的稳定节奏。
     /// </summary>
     private void ApplyMotionStyle()
     {
         string style = _viewModel.Settings.AnimationStyle;
         _spring.ApplyStyle(style);
 
-        // 翻页不再用弹簧：固定 280ms 的计时动画 + 队列（见 StartTabStep）。
-        // 尺寸弹簧（岛体宽高）另有一套、更软，页面切换快、岛体变形慢，两者解耦。
+        // 点击 240ms + 队列；滚轮近临界阻尼追目标，不套用 bouncy 尺寸预设。
     }
 
     /// <summary>
@@ -801,9 +799,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        // 状态切换结束上一段滚轮输入，不能把碎步或待执行刻度带到下一次展开。
+        // 状态切换结束上一段碎步输入；已接受的目标保持平滑落位，没有滚轮待执行队列。
         _wheelAccum = 0;
-        _wheelPendingSteps = 0;
         _state = state;
         _viewModel.State = state;
         RecordPagingSample("state");
@@ -1337,11 +1334,7 @@ public partial class MainWindow : Window
     // 常见 ±1~±10，攒到一个刻度（120）才算一次操作。
     private const int WheelTriggerDelta = 120;
 
-    // 现有串行执行器仍最多保留 2 个待执行刻度；后续阶段再改为追最新目标。
-    private const int WheelPendingLimit = 2;
-
     private int _wheelAccum;
-    private int _wheelPendingSteps;
     private DateTime _lastTabTransition = DateTime.MinValue;
     private bool _shadowFaded;
 
@@ -1352,7 +1345,7 @@ public partial class MainWindow : Window
     /// 滚轮入口（岛体 MouseWheel 与列表 ScrollViewer 的 PreviewMouseWheel 都汇到这里）。
     ///
     /// 展开态按 120 提取全部完整刻度并保留余数；反向输入先清掉旧方向碎步。
-    /// 归一化与执行器分开：完整刻度交给现有串行调度，待执行仍受上限 2 和页面边界限制。
+    /// 完整刻度只更新追赶目标，不积压逐页动画。
     /// </summary>
     private void HandleWheel(int delta)
     {
@@ -1373,23 +1366,8 @@ public partial class MainWindow : Window
             _wheelAccum = (int)(accumulated % WheelTriggerDelta);
             RecordPagingSample("wheel_normalized", steps);
 
-            // 向上滚（正）= 上一页，向下滚（负）= 下一页。
-            int dir = -Math.Sign(steps);
-            // 同向输入最多经过所有页面一次，无需按异常大 delta 循环数百万次。
-            int count = Math.Min(Math.Abs(steps), _tabPages.Length - 1);
-            for (int i = 0; i < count; i++)
-            {
-                if (_tabAnimating)
-                {
-                    int currentTarget = (int)Math.Round(_tabAnimTo);
-                    int wanted = Math.Clamp(currentTarget + _wheelPendingSteps + dir, 0, _tabPages.Length - 1);
-                    _wheelPendingSteps = Math.Clamp(wanted - currentTarget, -WheelPendingLimit, WheelPendingLimit);
-                }
-                else
-                {
-                    RequestWheelStep(dir);
-                }
-            }
+            // 向上滚（正）= 上一页，向下滚（负）= 下一页。每个事件只推一次目标。
+            if (steps != 0) PushWheelTarget(-steps);
 
             return;
         }
@@ -1400,19 +1378,14 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 滚轮专用：直接播一页，不经过队列。到边界就停。
-    /// 只从 HandleWheel（空闲态）和 FinishTabStep（消费待执行刻度）调用。
+    /// 滚轮接管点击队列，按最新已接受目标累计完整刻度。
     /// </summary>
-    private void RequestWheelStep(int dir)
+    private void PushWheelTarget(int steps)
     {
         int current = (int)Math.Round(_tabAnimating ? _tabAnimTo : _tabPosition);
-        int next = Math.Clamp(current + dir, 0, _tabPages.Length - 1);
-        if (next == current)
-        {
-            return;
-        }
-
-        StartTabStep(next);
+        int next = Math.Clamp(current + steps, 0, _tabPages.Length - 1);
+        _tabQueue.Clear();
+        if (next != current) StartWheelGlide(next);
     }
 
     /// <summary>
@@ -1422,6 +1395,27 @@ public partial class MainWindow : Window
     private void RequestTabTo(int target)
     {
         target = Math.Clamp(target, 0, _tabPages.Length - 1);
+        if (_wheelGliding)
+        {
+            AdvanceWheelGlide(Stopwatch.GetTimestamp());
+            RecordPagingSample("handoff_before");
+            _wheelGliding = false;
+            _wheelVelocity = 0;
+            _tabAnimating = false;
+            CompositionTarget.Rendering -= OnTabRendering;
+            _tabQueue.Clear();
+            RecordPagingSample("wheel_cancel");
+            int nearest = (int)Math.Round(_tabPosition);
+            int first = nearest == target ? target : nearest + Math.Sign(target - nearest);
+            StartTabStep(first);
+            RecordPagingSample("handoff_after");
+            for (int page = first; page != target;)
+            {
+                page += Math.Sign(target - page);
+                EnqueueTab(page, bypassLimit: true);
+            }
+            return;
+        }
         int from = _tabQueue.Count > 0
             ? _tabQueue[^1]
             : (int)Math.Round(_tabAnimating ? _tabAnimTo : _tabPosition);
@@ -2321,35 +2315,18 @@ public partial class MainWindow : Window
         target = Math.Clamp(target, 0, _tabPages.Length - 1);
 
         // 淡入动画会覆盖 Opacity 的本地值；每步开始前清掉旧时钟。
-        foreach (FrameworkElement page in _tabPages)
-        {
-            page.BeginAnimation(UIElement.OpacityProperty, null);
-        }
+        ClearTabOpacityAnimations();
 
+        _wheelGliding = false;
+        _wheelVelocity = 0;
         _tabAnimFrom = _tabPosition;
         _tabAnimTo = target;
-        _tabAnimStart = DateTime.UtcNow;
-        _lastTabTransition = _tabAnimStart;
+        _tabAnimStart = Stopwatch.GetTimestamp();
+        _lastTabTransition = DateTime.UtcNow;
 
         // 让 ViewModel 切到目标页：内容可见性、页头、bloom 强度、岛体高度弹簧都在那里。
         // 必须放在动画开始之前，否则滑进来的还是旧内容——那就是"先清空再加载"。
-        if (_viewModel.ActiveTab != target)
-        {
-            _tabSyncingTarget = true;
-            try
-            {
-                _viewModel.ActiveTab = target;
-            }
-            finally
-            {
-                _tabSyncingTarget = false;
-            }
-        }
-
-        if (target == 4)
-        {
-            _viewModel.SyncNotificationHistory();
-        }
+        SyncTabTarget(target);
 
         BeginTabTransitionVisual();
 
@@ -2371,7 +2348,12 @@ public partial class MainWindow : Window
 
     private void OnTabRendering(object? sender, EventArgs e)
     {
-        double t = (DateTime.UtcNow - _tabAnimStart).TotalMilliseconds / TabTransitionMs;
+        if (_wheelGliding)
+        {
+            RenderWheelGlide();
+            return;
+        }
+        double t = Stopwatch.GetElapsedTime(_tabAnimStart).TotalMilliseconds / TabTransitionMs;
         if (t >= 1 || t < 0)
         {
             _tabPosition = _tabAnimTo;
@@ -2385,20 +2367,11 @@ public partial class MainWindow : Window
         ApplyTabTransition();
     }
 
-    /// <summary>一步播完：先接上动画期间攒下的滚轮刻度，再看显式跳转队列，都没有就收尾。</summary>
+    /// <summary>点击的一步播完：接上显式跳转队列，否则收尾。滚轮不走这里。</summary>
     private void FinishTabStep()
     {
         _tabAnimating = false;
         RecordPagingSample("step_finish");
-
-        // 动画期间用户又滚了：立刻接着播，不加任何冷却——这是"快速滚动能连续翻页"的关键。
-        if (_wheelPendingSteps != 0)
-        {
-            int dir = Math.Sign(_wheelPendingSteps);
-            _wheelPendingSteps -= dir;
-            RequestWheelStep(dir);
-            return;
-        }
 
         if (_tabQueue.Count > 0)
         {

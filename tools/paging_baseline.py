@@ -108,6 +108,24 @@ INPUT_EXPECTATIONS = {
     "pending_reset": (2, 0, 1), "near_edge_multi": (5, 0, 1), "zero_delta": (1, 0, 0),
 }
 
+GLIDE_CASES = {
+    "five_ticks": (0, [-120] * 5, 0.02325),
+    "clamped_burst": (0, [-12000], 0),
+    "rapid_reverse": (2, [-360, 360], 0.0465),
+    "click_then_wheel": (1, ["tab:5", -120], 0.0465),
+    "wheel_then_click": (1, [-360, "tab:0"], 0.0465),
+    "click_only": (0, ["tab:5", 0], 0),
+    "click_edge_takeover": (1, ["tab:5", -12000], 0.0465),
+}
+ALL_CASES = {**CASES, **GLIDE_CASES}
+GLIDE_DESTINATIONS = {name: value[:2] for name, value in INPUT_EXPECTATIONS.items()}
+GLIDE_DESTINATIONS.update({
+    # Both wheel targets are accepted immediately; changing state does not replay queued steps.
+    "pending_reset": (3, 0), "five_ticks": (5, 0), "clamped_burst": (5, 0),
+    "rapid_reverse": (2, 0), "click_then_wheel": (3, 0), "wheel_then_click": (0, 0),
+    "click_only": (5, 0), "click_edge_takeover": (5, 0),
+})
+
 
 def summarize(trace, measurements):
     rows = list(csv.DictReader(trace.open(encoding="utf-8-sig", newline="")))
@@ -118,7 +136,7 @@ def summarize(trace, measurements):
         end = next(float(r["time_ms"]) for r in rows if r["event"] == "mark_end_" + tag)
         sample = [r for r in rows if begin <= float(r["time_ms"]) <= end]
         wheels = [r for r in sample if r["event"] == "wheel"]
-        if len(wheels) != sum(isinstance(action, int) for action in CASES[measurement["case"]][1]):
+        if len(wheels) != sum(isinstance(action, int) for action in ALL_CASES[measurement["case"]][1]):
             raise RuntimeError(f"Missing input events: {tag}")
         frames = [r for r in sample if r["event"] == "frame"]
         if not frames:
@@ -128,7 +146,7 @@ def summarize(trace, measurements):
         # Persistent convergence: the LAST deviation, not the first crossing of the target.
         off_target = [r for r in frames if abs(float(r["position"]) - final_position) * 34 > 0.5]
         last_motion = float(off_target[-1]["time_ms"]) if off_target else last_input
-        finishes = [float(r["time_ms"]) for r in sample if r["event"] == "step_finish"]
+        finishes = [float(r["time_ms"]) for r in sample if r["event"] in ("step_finish", "wheel_finish")]
         unsettled = [float(r["time_ms"]) for r in frames if r["size_settled"] == "False"]
         intervals = [float(b["time_ms"]) - float(a["time_ms"]) for a, b in zip(frames, frames[1:])]
         summaries.append({
@@ -142,8 +160,18 @@ def summarize(trace, measurements):
             "initial_remainder": int(wheels[0]["remainder"]),
             "final_pending": int(frames[-1]["pending"]),
             "final_queued": int(frames[-1]["queued"]),
+            "final_active_tab": int(frames[-1]["active_tab"]),
             "step_count": sum(r["event"] == "step_start" for r in sample),
             "finish_count": sum(r["event"] == "step_finish" for r in sample),
+            "step_cancel_count": sum(r["event"] == "step_cancel" for r in sample),
+            "wheel_start_count": sum(r["event"] == "wheel_start" for r in sample),
+            "wheel_finish_count": sum(r["event"] == "wheel_finish" for r in sample),
+            "wheel_cancel_count": sum(r["event"] == "wheel_cancel" for r in sample),
+            "wheel_retarget_count": sum(r["event"] == "wheel_retarget" for r in sample),
+            "handoffs": [{"event": r["event"], "position": float(r["position"]),
+                          "velocity": float(r.get("velocity", 0)), "wheel": r.get("wheel_gliding") == "True"}
+                         for r in sample if r["event"] in ("handoff_before", "handoff_after", "retarget_before", "wheel_retarget")],
+            "position_in_bounds": all(0 <= float(r["position"]) <= 5 for r in sample),
             "truncated": frames[-1]["animating"] == "True" or frames[-1]["size_settled"] == "False",
             "max_callback_interval_ms": round(max(intervals, default=0), 2),
             "callback_intervals_over_33ms": sum(v > 33 for v in intervals),
@@ -157,7 +185,14 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=3, choices=range(1, 11))
     parser.add_argument("--check-input", action="store_true", help="Assert stage-2 input behavior")
+    parser.add_argument("--check-glide", action="store_true", help="Assert stage-3 target tracking and handoff behavior")
+    parser.add_argument("--cases", nargs="+", choices=ALL_CASES, help="Run only selected scenarios")
     args = parser.parse_args()
+    if args.check_input and args.check_glide:
+        parser.error("Choose --check-input or --check-glide; the scheduling semantics differ")
+    cases = ALL_CASES if args.check_glide else CASES
+    if args.cases:
+        cases = {name: ALL_CASES[name] for name in args.cases}
     exe, out = args.exe.resolve(), args.out.resolve()
     if not exe.is_file():
         parser.error(f"Executable does not exist: {exe}")
@@ -192,7 +227,7 @@ def main():
             raise ctypes.WinError(ctypes.get_last_error())
         time.sleep(2)
         for repeat in range(args.repeats):
-            for name, (page, actions, gap) in CASES.items():
+            for name, (page, actions, gap) in cases.items():
                 tag = f"{name}_{repeat}"
                 # Begin each case in a fresh expanded input state; retain app/services for timing.
                 send(user, hwnd, "collapse")
@@ -219,7 +254,9 @@ def main():
                 wait_until(start + 0.900)
                 cpu_900 = cpu_ms(kernel, handle) - start_cpu
                 elapsed_900 = (time.perf_counter() - start) * 1000
-                wait_until(start + 1.4)
+                # A five-page CLICK deliberately takes 5*240ms, then its independent size spring settles.
+                observation_seconds = 2.2 if name == "click_only" else 1.4
+                wait_until(start + observation_seconds)
                 send(user, hwnd, f"probe:mark:end_{tag}")
                 send(user, hwnd, "probe:flush")
                 measurements.append({"tag": tag, "case": name,
@@ -228,7 +265,8 @@ def main():
                     "net_cpu_240_ms": round(cpu_240 - idle_240, 3),
                     "net_cpu_900_ms": round(cpu_900 - idle_900, 3),
                     "actual_240_window_ms": round(elapsed_240, 3),
-                    "actual_900_window_ms": round(elapsed_900, 3)})
+                    "actual_900_window_ms": round(elapsed_900, 3),
+                    "observation_window_ms": observation_seconds * 1000})
                 print(f"completed {tag}", flush=True)
     finally:
         if handle:
@@ -253,12 +291,12 @@ def main():
                   "Frames before input may contain leftover wheel remainder; inspect initial_remainder.",
                   "Empty test data does not represent the cost of a populated history list."]}
     (out / "summary.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-    for name in CASES:
-        cases = [r for r in summary if r["case"] == name]
-        print(f"{name}: page tail={statistics.median(r['page_tail_0_5dip_ms'] for r in cases):.1f}ms, "
-              f"logical tail={statistics.median(r['logical_tail_ms'] for r in cases):.1f}ms, "
-              f"net CPU[240/900]={statistics.median(r['net_cpu_240_ms'] for r in cases):.1f}/"
-              f"{statistics.median(r['net_cpu_900_ms'] for r in cases):.1f}ms")
+    for name in cases:
+        results = [r for r in summary if r["case"] == name]
+        print(f"{name}: page tail={statistics.median(r['page_tail_0_5dip_ms'] for r in results):.1f}ms, "
+              f"logical tail={statistics.median(r['logical_tail_ms'] for r in results):.1f}ms, "
+              f"net CPU[240/900]={statistics.median(r['net_cpu_240_ms'] for r in results):.1f}/"
+              f"{statistics.median(r['net_cpu_900_ms'] for r in results):.1f}ms")
     if any(r["truncated"] for r in summary):
         raise RuntimeError("Some transitions did not settle within the observation window; inspect summary.json")
     if args.check_input:
@@ -272,6 +310,40 @@ def main():
             if result["finish_count"] != result["step_count"]:
                 raise AssertionError(f"{result['tag']}: unexpected repeated completion callbacks")
         print(f"Input assertions passed: {len(summary)} cases", flush=True)
+    if args.check_glide:
+        validate_glide_results(summary)
+        print(f"Glide assertions passed: {len(summary)} cases", flush=True)
+
+
+def validate_glide_results(summary):
+    for result in summary:
+        tag, name = result["tag"], result["case"]
+        if result["truncated"]:
+            raise AssertionError(f"{tag}: observation ended before settling")
+        actual = (result["final_page_position"], result["final_remainder"])
+        if actual != GLIDE_DESTINATIONS[name] or result["final_active_tab"] != actual[0]:
+            raise AssertionError(f"{tag}: wrong final state: {actual}, active={result['final_active_tab']}")
+        if result["initial_remainder"] or result["final_pending"] or result["final_queued"] or not result["position_in_bounds"]:
+            raise AssertionError(f"{tag}: leaked input/queue or position out of bounds")
+        if result["step_count"] != result["finish_count"] + result["step_cancel_count"]:
+            raise AssertionError(f"{tag}: click start/finish/cancel mismatch")
+        if result["wheel_start_count"] != result["wheel_finish_count"] + result["wheel_cancel_count"]:
+            raise AssertionError(f"{tag}: wheel start/finish/cancel mismatch")
+        handoffs = result["handoffs"]
+        if len(handoffs) % 2:
+            raise AssertionError(f"{tag}: unpaired handoff")
+        for before, after in zip(handoffs[::2], handoffs[1::2]):
+            if abs(before["position"] - after["position"]) > 0.00001:
+                raise AssertionError(f"{tag}: position jumped during handoff")
+            if after["wheel"] and abs(before["velocity"] - after["velocity"]) > 0.00001:
+                raise AssertionError(f"{tag}: wheel takeover/retarget lost velocity")
+        if name in ("three", "multi_delta", "five_ticks", "clamped_burst"):
+            if result["step_count"] or result["wheel_start_count"] != 1 or result["logical_tail_ms"] >= 500:
+                raise AssertionError(f"{tag}: multi-tick input still serialized or too slow")
+        if name == "click_only" and (result["step_count"] != 5 or result["wheel_start_count"]):
+            raise AssertionError(f"{tag}: explicit cross-page click no longer traverses all pages")
+        if name in ("click_then_wheel", "wheel_then_click", "click_edge_takeover") and len(handoffs) != 2:
+            raise AssertionError(f"{tag}: input paths did not hand off")
 
 
 if __name__ == "__main__":
