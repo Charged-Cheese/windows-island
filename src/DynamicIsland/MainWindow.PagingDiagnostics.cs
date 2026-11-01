@@ -15,6 +15,10 @@ public partial class MainWindow
     private Stopwatch? _pagingClock;
     private string? _pagingPath;
     private double _pagingOriginSeconds;
+    private readonly bool _pagingTestWindow =
+        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DI_PAGING_LOG")) &&
+        Environment.GetEnvironmentVariable("DI_PAGING_VISIBLE") == "1";
+    private bool _tabOpacitySettled = true;
 
     private readonly record struct PagingSample(
         double TimeMs, string Event, int Delta, int State, int ActiveTab,
@@ -23,7 +27,7 @@ public partial class MainWindow
         int FromPage, double FromY, double FromOpacity, double TargetY, double TargetOpacity,
         bool WheelGliding, double Velocity, string SizeMode, double TargetWidth, double TargetHeight,
         double TargetRadius, double SizeTargetTimeMs, double SizeDurationMs, bool SizeTimed,
-        double Radius, bool SizeOnlySettled);
+        double Radius, bool SizeOnlySettled, bool OpacitySettled);
 
     private void StartPagingProbeIfRequested()
     {
@@ -36,7 +40,7 @@ public partial class MainWindow
             File.WriteAllText(_pagingPath,
                 "time_ms,event,delta,state,active_tab,position,target,animating,remainder,pending,queued," +
                 "width,height,size_settled,content_opacity,from_page,from_y,from_opacity,target_y,target_opacity,wheel_gliding,velocity," +
-                "size_mode,target_width,target_height,target_radius,size_target_time_ms,size_duration_ms,size_timed,radius,size_only_settled\n",
+                "size_mode,target_width,target_height,target_radius,size_target_time_ms,size_duration_ms,size_timed,radius,size_only_settled,opacity_settled\n",
                 Encoding.UTF8);
             _pagingOriginSeconds = (double)Stopwatch.GetTimestamp() / Stopwatch.Frequency;
             _pagingClock = Stopwatch.StartNew();
@@ -73,7 +77,7 @@ public partial class MainWindow
             from, PageY(oldPage), VisibleOpacity(oldPage), PageY(newPage), VisibleOpacity(newPage),
             _wheelGliding, _wheelVelocity, _spring.SizeMode, _spring.TargetWidth, _spring.TargetHeight,
             _spring.TargetRadius, (_spring.TargetUpdatedSeconds - _pagingOriginSeconds) * 1000,
-            _spring.SizeDurationMs, _spring.IsSizeTimed, _spring.Radius, _spring.IsSizeSettled));
+            _spring.SizeDurationMs, _spring.IsSizeTimed, _spring.Radius, _spring.IsSizeSettled, _tabOpacitySettled));
     }
 
     // Layout/render callback samples, not timestamps of pixels presented by the compositor.
@@ -115,7 +119,7 @@ public partial class MainWindow
             var csv = new StringBuilder();
             foreach (PagingSample s in _pagingSamples)
                 csv.Append(CultureInfo.InvariantCulture,
-                    $"{s.TimeMs:F4},{s.Event},{s.Delta},{s.State},{s.ActiveTab},{s.Position:F6},{s.Target:F6},{s.Animating},{s.Remainder},{s.Pending},{s.Queued},{s.Width:F4},{s.Height:F4},{s.SizeSettled},{s.ContentOpacity:F6},{s.FromPage},{s.FromY:F4},{s.FromOpacity:F6},{s.TargetY:F4},{s.TargetOpacity:F6},{s.WheelGliding},{s.Velocity:F6},{s.SizeMode},{s.TargetWidth:F4},{s.TargetHeight:F4},{s.TargetRadius:F4},{s.SizeTargetTimeMs:F4},{s.SizeDurationMs:F4},{s.SizeTimed},{s.Radius:F4},{s.SizeOnlySettled}\n");
+                    $"{s.TimeMs:F4},{s.Event},{s.Delta},{s.State},{s.ActiveTab},{s.Position:F6},{s.Target:F6},{s.Animating},{s.Remainder},{s.Pending},{s.Queued},{s.Width:F4},{s.Height:F4},{s.SizeSettled},{s.ContentOpacity:F6},{s.FromPage},{s.FromY:F4},{s.FromOpacity:F6},{s.TargetY:F4},{s.TargetOpacity:F6},{s.WheelGliding},{s.Velocity:F6},{s.SizeMode},{s.TargetWidth:F4},{s.TargetHeight:F4},{s.TargetRadius:F4},{s.SizeTargetTimeMs:F4},{s.SizeDurationMs:F4},{s.SizeTimed},{s.Radius:F4},{s.SizeOnlySettled},{s.OpacitySettled}\n");
             File.AppendAllText(_pagingPath, csv.ToString(), Encoding.UTF8);
             _pagingSamples.Clear();
         }

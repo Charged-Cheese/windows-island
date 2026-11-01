@@ -109,6 +109,8 @@ INPUT_EXPECTATIONS = {
 }
 
 GLIDE_CASES = {
+    "click_one": (0, ["tab:1", 0], 0),
+    "click_one_reverse": (1, ["tab:0", 0], 0),
     "five_ticks": (0, [-120] * 5, 0.02325),
     "clamped_burst": (0, [-12000], 0),
     "rapid_reverse": (2, [-360, 360], 0.0465),
@@ -126,6 +128,7 @@ SIZE_CASES = {
 ALL_CASES = {**CASES, **GLIDE_CASES, **SIZE_CASES}
 GLIDE_DESTINATIONS = {name: value[:2] for name, value in INPUT_EXPECTATIONS.items()}
 GLIDE_DESTINATIONS.update({
+    "click_one": (1, 0), "click_one_reverse": (0, 0),
     # Both wheel targets are accepted immediately; changing state does not replay queued steps.
     "pending_reset": (3, 0), "five_ticks": (5, 0), "clamped_burst": (5, 0),
     "rapid_reverse": (2, 0), "click_then_wheel": (3, 0), "wheel_then_click": (0, 0),
@@ -159,6 +162,11 @@ def summarize(trace, measurements):
         intervals = [float(b["time_ms"]) - float(a["time_ms"]) for a, b in zip(frames, frames[1:])]
         size_events = [r for r in sample if r["event"].startswith("size_timed_")]
         size_finishes = [float(r["time_ms"]) for r in size_events if r["event"] == "size_timed_finish"]
+        opacity_finishes = [float(r["time_ms"]) for r in sample if r["event"] == "opacity_finish"]
+        first_input = float(wheels[0]["time_ms"])
+        old_page = ALL_CASES[measurement["case"]][0]
+        hidden = [float(r["time_ms"]) for r in frames if float(r["time_ms"]) >= first_input
+                  and int(r["from_page"]) == old_page and float(r["from_opacity"]) == 0]
         summaries.append({
             **measurement,
             "initial_state": int(sample[0]["state"]),
@@ -167,11 +175,14 @@ def summarize(trace, measurements):
             "logical_tail_ms": round(max(0, max(finishes, default=last_input) - last_input), 2),
             "size_tail_ms": round(max(0, max(unsettled, default=last_input) - last_input), 2),
             "size_completion_tail_ms": round(max(0, max(size_finishes) - last_input), 2) if size_finishes else None,
+            "opacity_completion_tail_ms": round(max(0, max(opacity_finishes) - last_input), 2) if opacity_finishes else None,
+            "old_page_first_hidden_ms": round(min(hidden) - first_input, 2) if hidden else None,
             "size_events": [{key: r[key] for key in ("time_ms", "event", "width", "height", "radius",
                             "target_width", "target_height", "target_radius", "size_target_time_ms", "size_duration_ms")}
                             for r in size_events],
             "final_size_mode": frames[-1].get("size_mode"),
             "final_state": int(frames[-1]["state"]),
+            "final_opacity_settled": frames[-1].get("opacity_settled", "True") == "True",
             "final_page_position": final_position,
             "final_remainder": int(frames[-1]["remainder"]),
             "initial_remainder": int(wheels[0]["remainder"]),
@@ -192,6 +203,9 @@ def summarize(trace, measurements):
             "truncated": frames[-1]["animating"] == "True" or frames[-1]["size_settled"] == "False",
             "max_callback_interval_ms": round(max(intervals, default=0), 2),
             "callback_intervals_over_33ms": sum(v > 33 for v in intervals),
+            "callback_interval_distribution_ms": [round(v, 3) for v in intervals],
+            "callback_interval_p50_ms": round(statistics.median(intervals), 2) if intervals else 0,
+            "callback_interval_p95_ms": round(sorted(intervals)[int((len(intervals)-1)*0.95)], 2) if intervals else 0,
         })
     return summaries
 
@@ -205,6 +219,8 @@ def main():
     parser.add_argument("--check-glide", action="store_true", help="Assert stage-3 target tracking and handoff behavior")
     parser.add_argument("--check-size", action="store_true", help="Assert stage-5 timed size deadlines/completion and state takeover (requires --check-glide)")
     parser.add_argument("--cases", nargs="+", choices=ALL_CASES, help="Run only selected scenarios")
+    parser.add_argument("--profile", choices=("baseline", "opacity", "wheel1000", "wheel1200", "cubic240", "cubic200"),
+                        help="Opt-in stage-6 diagnostic A/B profile; never saved to user settings")
     args = parser.parse_args()
     if args.check_input and args.check_glide:
         parser.error("Choose --check-input or --check-glide; the scheduling semantics differ")
@@ -229,6 +245,10 @@ def main():
     (data_dir / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
     trace = out / "paging.csv"
     env = dict(os.environ, DI_PAGING_LOG=str(trace), DYNAMICISLAND_DATA_DIR=str(data_dir))
+    env.pop("DI_PAGING_VISIBLE", None)
+    env.pop("DI_PAGING_PROFILE", None)
+    if args.profile:
+        env["DI_PAGING_PROFILE"] = args.profile
     env.pop("DI_FRAME_LOG", None)  # Its periodic UI-thread disk writes would perturb measurement.
     user, kernel, callback = win32()
     process = subprocess.Popen([str(exe)], env=env, cwd=exe.parent)
@@ -308,6 +328,7 @@ def main():
               "assembly_sha256": hashlib.sha256(assembly.read_bytes()).hexdigest() if assembly.is_file() else None,
               "measured_binary": binary.name, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
               "settings": settings, "repeats": args.repeats, "cases": summary,
+              "profile": args.profile or "default",
               "limits": [
                   "Page tail uses 0.5 DIP of the 34-DIP translation, excluding opacity/scale/shadow.",
                   "Rendering callbacks are not compositor presentation timestamps.",
@@ -381,6 +402,8 @@ def validate_glide_results(summary):
             raise AssertionError(f"{tag}: fixture was not expanded before input; preserve this run and repeat the affected case")
         if result["truncated"]:
             raise AssertionError(f"{tag}: observation ended before settling")
+        if not result.get("final_opacity_settled", True):
+            raise AssertionError(f"{tag}: page opacity did not finish")
         actual = (result["final_page_position"], result["final_remainder"])
         if actual != GLIDE_DESTINATIONS[name] or result["final_active_tab"] != actual[0]:
             raise AssertionError(f"{tag}: wrong final state: {actual}, active={result['final_active_tab']}")

@@ -2,16 +2,14 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
 using DynamicIsland.ViewModels;
+using DynamicIsland.Infrastructure;
 
 namespace DynamicIsland;
 
 public partial class MainWindow
 {
     private bool _clientAreaAnimation = SystemParameters.ClientAreaAnimation;
-    // Unit-mass spring: k=700, c=52, zeta≈0.983. Exact integration avoids frame-rate drift.
-    private const double WheelStiffness = 700;
-    private const double WheelHalfDamping = 26;
-    private static readonly double WheelFrequency = Math.Sqrt(WheelStiffness - WheelHalfDamping * WheelHalfDamping);
+    private readonly PagingMotion _pagingMotion = PagingMotion.Load();
 
     private void StartWheelGlide(int target)
     {
@@ -26,8 +24,8 @@ public partial class MainWindow
         else if (takingOverClick)
         {
             double t = Math.Clamp(Stopwatch.GetElapsedTime(_tabAnimStart, now).TotalMilliseconds / TabTransitionMs, 0, 1);
-            _tabPosition = _tabAnimFrom + (_tabAnimTo - _tabAnimFrom) * EaseOutQuint(t);
-            _wheelVelocity = (_tabAnimTo - _tabAnimFrom) * 5 * Math.Pow(1 - t, 4) / (TabTransitionMs / 1000);
+            _tabPosition = _tabAnimFrom + (_tabAnimTo - _tabAnimFrom) * _pagingMotion.ClickProgress(t);
+            _wheelVelocity = (_tabAnimTo - _tabAnimFrom) * _pagingMotion.ClickSpeed(t);
             RecordPagingSample("handoff_before");
             RecordPagingSample("step_cancel");
         }
@@ -65,13 +63,7 @@ public partial class MainWindow
         _wheelLastTick = now;
         if (dt <= 0) return;
 
-        double error = _tabPosition - _tabAnimTo;
-        double velocity = _wheelVelocity;
-        double decay = Math.Exp(-WheelHalfDamping * dt);
-        double cosine = Math.Cos(WheelFrequency * dt);
-        double sine = Math.Sin(WheelFrequency * dt) / WheelFrequency;
-        double position = _tabAnimTo + decay * (error * cosine + (velocity + WheelHalfDamping * error) * sine);
-        _wheelVelocity = decay * (velocity * cosine - (WheelHalfDamping * velocity + WheelStiffness * error) * sine);
+        (double position, _wheelVelocity) = _pagingMotion.Advance(_tabPosition, _wheelVelocity, _tabAnimTo, dt);
         _tabPosition = Math.Clamp(position, 0, _tabPages.Length - 1);
         if (_tabPosition != position) _wheelVelocity = 0;
     }
@@ -124,7 +116,7 @@ public partial class MainWindow
         if (_state != IslandState.Expanded) return;
         (double width, double height) = SizeForTab(target);
         if (_clientAreaAnimation)
-            _spring.SetTargetTimed(width, height, ExpandedRadius, TabTransitionMs, timestamp);
+            _spring.SetTargetTimed(width, height, ExpandedRadius, PageSizeTransitionMs, timestamp);
         else
             _spring.SnapTo(width, height, ExpandedRadius);
         UpdateIslandHitRect();

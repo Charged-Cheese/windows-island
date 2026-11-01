@@ -4,7 +4,7 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 
 [更新说明](CHANGELOG.md) · [v1.0.4 发布说明](docs/releases/v1.0.4.md) · [后续开发计划（第五、六阶段）](docs/paging-future-plan.md)
 
-源码进度（尚未发布）：第五阶段已接入 240ms 切页尺寸定时通道并完成自动复测，桌面逐帧与真实鼠标验收待完成；第六阶段尚未开发，详见 [阶段记录](docs/paging-repair-progress.md)。
+源码进度（尚未发布）：第五阶段尺寸通道、第六阶段透明度与节奏调整已实现并完成自动复测；桌面逐帧、真实鼠标与实际不同刷新率设备验收待完成，详见 [第六阶段报告](docs/paging-stage6-report.md)。
 
 ![展开态](docs/shots/desktop-expanded-v2.png)
 
@@ -118,7 +118,7 @@ dotnet run --project .\tools\HistoryScrollbars.SelfTest\HistoryScrollbars.SelfTe
 dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csproj
 ```
 
-翻页调度、固定页面布局、尺寸定时通道与后续工作的复测入口见 [阶段记录](docs/paging-repair-progress.md)。尺寸通道已实现，桌面验收及透明度/节奏打磨仍待完成，范围和验收标准见 [后续计划](docs/paging-future-plan.md)。
+翻页调度、固定页面布局、尺寸定时通道的复测入口见 [阶段记录](docs/paging-repair-progress.md)；透明度/节奏的 A/B 测量与未验证项见 [第六阶段报告](docs/paging-stage6-report.md)。
 
 ## 数据目录
 
@@ -135,7 +135,7 @@ dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csp
 - **自研弹簧动画引擎**：`CompositionTarget.Rendering` 逐帧积分（宽 / 高 / 圆角 / 纵向轻弹四通道），
   可随时打断并保留速度；展开用略欠阻尼、收起用更紧的阻尼，形状变化带轻微 overshoot
 - **展开/收起交叉淡入**：按岛体高度做 smoothstep 渐变，展开内容同时做 7px 渐进归位，变形过程不硬切
-- **页面切换**：连续 tab 位置驱动 6 页垂直滑动 / 缩放 / 淡入。滚轮使用 k=700、c=52 的近临界阻尼弹簧追最新目标并继承速度；点击每页 240ms。页面按各自尺寸固定并顶部锚定，岛体只裁剪内容。
+- **页面切换**：连续 tab 位置驱动 6 页垂直滑动 / 缩放 / 淡入。滚轮使用 k=1200、c=68 的近临界阻尼弹簧追最新目标并继承速度；点击每页 200ms Cubic，尺寸通道独立 240ms。透明度使用 smoothstep，低于 0.002 才隐藏。页面按各自尺寸固定并顶部锚定，岛体只裁剪内容。
 - **主题系统**：曜石 / 石墨 / 瓷白三套调色板，颜色统一走 `DynamicResource`，切换即时生效并持久化
 - **磨砂玻璃**：`AllowsTransparency` 的分层窗口拿不到 DWM Acrylic/Mica，改用「半透明底色（91%）+
   顶部柔光渐变 + 1px 边缘高光 + 3×3 噪点平铺 + 投影」做降级，文字对比度不受影响
@@ -193,7 +193,7 @@ dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csp
 - 隐私点依赖 Windows 隐私记录，个别应用不写记录时可能不亮
 - 发布 ZIP 内置 .NET 10 桌面运行时；源码直接构建的框架依赖版本仍需安装运行时
 - 未做代码签名
-- v1.0.4 发布包未包含尺寸动画同步、透明度与单格节奏打磨；当前源码已实现第五阶段尺寸通道，桌面验收待完成，第六阶段尚未开发；见 [后续计划](docs/paging-future-plan.md)
+- v1.0.4 发布包未包含第五、六阶段改动；当前源码的尺寸、透明度与节奏调整已实现，桌面完整体验验收待完成；见 [第六阶段报告](docs/paging-stage6-report.md)
 
 ## 许可证
 

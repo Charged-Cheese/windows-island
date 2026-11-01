@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -148,7 +148,7 @@ public partial class MainWindow : Window
 
     // ---- 点击：单页计时动画 + 队列；滚轮：连续追最新目标 ----
     // _tabPosition 是"页索引的浮点值"（0=媒体 … 5=日历），只写 RenderTransform，不参与布局。
-    // 点击每页 240ms；滚轮不逐页停驻，允许中途更新目标并继承速度。
+    // Clicks use timed steps; wheel input continuously retargets and preserves velocity.
     private double _tabPosition;
     private bool _tabAnimating;
     private double _tabAnimFrom;
@@ -162,7 +162,8 @@ public partial class MainWindow : Window
     // 队列执行器自己改 ActiveTab 时把通知打回去，否则会再入队一次。
     private bool _tabSyncingTarget;
 
-    private const double TabTransitionMs = 240.0;
+    private double TabTransitionMs => _pagingMotion.ClickDurationMs;
+    private const double PageSizeTransitionMs = 240.0;
     private const int TabQueueLimit = 3;
     private const double TabSlideDistance = 34.0;
     private bool _privacyPulseRunning;
@@ -179,6 +180,7 @@ public partial class MainWindow : Window
         MaterialManager.Select(_viewModel.Settings.Material);
         ThemeManager.Apply(_viewModel.Settings.Theme);
         InitializeComponent();
+        if (_pagingTestWindow) ShowInTaskbar = true;
 
         Width = WindowWidth;
         Height = WindowHeight;
@@ -365,7 +367,7 @@ public partial class MainWindow : Window
         string style = _viewModel.Settings.AnimationStyle;
         _spring.ApplyStyle(style);
 
-        // 点击 240ms + 队列；滚轮近临界阻尼追目标，不套用 bouncy 尺寸预设。
+        // Click timing and wheel tracking are independent of the island spring style.
     }
 
     /// <summary>
@@ -422,7 +424,7 @@ public partial class MainWindow : Window
         _hwnd = hwnd;
 
         long exStyle = NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE).ToInt64();
-        exStyle |= NativeMethods.WS_EX_TOOLWINDOW;
+        if (!_pagingTestWindow) exStyle |= NativeMethods.WS_EX_TOOLWINDOW;
         NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, new IntPtr(exStyle));
 
         if (HwndSource.FromHwnd(hwnd) is { } source)
@@ -2382,8 +2384,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        // cubic-bezier(0.22, 1, 0.36, 1)：起步快、尾巴极软，没有任何回弹。
-        _tabPosition = _tabAnimFrom + (_tabAnimTo - _tabAnimFrom) * EaseOutQuint(t);
+        // Use the same click curve and analytic velocity for playback and handoff.
+        _tabPosition = _tabAnimFrom + (_tabAnimTo - _tabAnimFrom) * _pagingMotion.ClickProgress(t);
         ApplyTabTransition();
     }
 
@@ -2405,14 +2407,6 @@ public partial class MainWindow : Window
         EndTabTransitionVisual();
     }
 
-    /// <summary>cubic-bezier(0.22,1,0.36,1) 的近似：quint-out，末端近乎静止、不回弹。</summary>
-    private static double EaseOutQuint(double t)
-    {
-        double u = 1 - Math.Clamp(t, 0, 1);
-        double u2 = u * u;
-        return 1 - u2 * u2 * u;
-    }
-
     /// <summary>
     /// 把位置落到画面上：每页按"与当前位置的距离"垂直滑动、轻微缩放、淡出。
     /// 只写 RenderTransform / Opacity 这些合成属性，不碰布局。
@@ -2429,11 +2423,7 @@ public partial class MainWindow : Window
             double distance = Math.Min(Math.Abs(i - _tabPosition), 1.0);
             double eased = distance * distance * (3 - 2 * distance);
 
-            double opacity = Math.Pow(1 - eased, 1.45);
-            if (opacity < 0.02)
-            {
-                opacity = 0;
-            }
+            double opacity = _pagingMotion.Opacity(distance);
 
             double scale = 1 - 0.035 * eased;
 
@@ -2450,8 +2440,10 @@ public partial class MainWindow : Window
                 if (page.Visibility != Visibility.Collapsed)
                 {
                     page.Visibility = Visibility.Collapsed;
-                    page.IsHitTestVisible = false;
                 }
+
+                page.Opacity = 0;
+                page.IsHitTestVisible = false;
 
                 continue;
             }
@@ -2474,6 +2466,18 @@ public partial class MainWindow : Window
                 translate.X = 0;
                 translate.Y = offsetY;
             }
+        }
+
+        bool opacitySettled = true;
+        int targetPage = (int)Math.Round(_tabAnimTo);
+        for (int i = 0; i < _tabPages.Length; i++)
+            opacitySettled &= i == targetPage
+                ? _tabPages[i].Visibility == Visibility.Visible && _tabPages[i].Opacity == 1
+                : _tabPages[i].Visibility != Visibility.Visible || _tabPages[i].Opacity == 0;
+        if (_tabOpacitySettled != opacitySettled)
+        {
+            _tabOpacitySettled = opacitySettled;
+            RecordPagingSample(opacitySettled ? "opacity_finish" : "opacity_start");
         }
 
         for (int i = 0; i < _tabDots.Length; i++)
