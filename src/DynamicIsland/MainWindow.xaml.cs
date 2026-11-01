@@ -801,6 +801,9 @@ public partial class MainWindow : Window
             return;
         }
 
+        // 状态切换结束上一段滚轮输入，不能把碎步或待执行刻度带到下一次展开。
+        _wheelAccum = 0;
+        _wheelPendingSteps = 0;
         _state = state;
         _viewModel.State = state;
         RecordPagingSample("state");
@@ -1334,8 +1337,7 @@ public partial class MainWindow : Window
     // 常见 ±1~±10，攒到一个刻度（120）才算一次操作。
     private const int WheelTriggerDelta = 120;
 
-    // 动画期间最多记住这么多个刻度（带方向）。快速连滚 3 格 = 当前 1 页 + 待执行 2 页，
-    // 再多就丢掉——不是队列，只是"别让手快的人白滚"。
+    // 现有串行执行器仍最多保留 2 个待执行刻度；后续阶段再改为追最新目标。
     private const int WheelPendingLimit = 2;
 
     private int _wheelAccum;
@@ -1349,36 +1351,46 @@ public partial class MainWindow : Window
     /// <summary>
     /// 滚轮入口（岛体 MouseWheel 与列表 ScrollViewer 的 PreviewMouseWheel 都汇到这里）。
     ///
-    /// 判定规则（区分"独立刻度"与"同一刻度的重复事件"）：
-    /// 1. 累积到 WheelTriggerDelta（120）才算一次有效刻度——鼠标一格刚好一次，
-    ///    触控板十几个碎步才凑一次，所以不会被高频细碎事件刷成连翻；
-    /// 2. 触发后把累积值清零（余量丢弃），同一个刻度不会二次触发；
-    /// 3. 动画中不丢弃也不阻塞：记一个带方向的待执行刻度（上限 2），动画一结束立刻接着播；
-    /// 4. 没有任何"动画后冷却/手势锁"——独立刻度的下一次事件立刻响应。
+    /// 展开态按 120 提取全部完整刻度并保留余数；反向输入先清掉旧方向碎步。
+    /// 归一化与执行器分开：完整刻度交给现有串行调度，待执行仍受上限 2 和页面边界限制。
     /// </summary>
     private void HandleWheel(int delta)
     {
         RecordPagingSample("wheel", delta);
+        if (delta == 0) return;
+
         // 展开态滚轮切页（与右侧分页点同一套页面），折叠态仍调音量。
         if (_state == IslandState.Expanded)
         {
-            _wheelAccum += delta;
-            if (Math.Abs(_wheelAccum) < WheelTriggerDelta)
+            if (_wheelAccum != 0 && Math.Sign(delta) != Math.Sign(_wheelAccum))
             {
-                return;
+                _wheelAccum = 0;
             }
+
+            // 用 long 做中间累加，避免异常的大 delta 溢出；余数始终小于 120。
+            long accumulated = (long)_wheelAccum + delta;
+            int steps = (int)(accumulated / WheelTriggerDelta);
+            _wheelAccum = (int)(accumulated % WheelTriggerDelta);
+            RecordPagingSample("wheel_normalized", steps);
 
             // 向上滚（正）= 上一页，向下滚（负）= 下一页。
-            int dir = _wheelAccum > 0 ? -1 : 1;
-            _wheelAccum = 0;
-
-            if (_tabAnimating)
+            int dir = -Math.Sign(steps);
+            // 同向输入最多经过所有页面一次，无需按异常大 delta 循环数百万次。
+            int count = Math.Min(Math.Abs(steps), _tabPages.Length - 1);
+            for (int i = 0; i < count; i++)
             {
-                _wheelPendingSteps = Math.Clamp(_wheelPendingSteps + dir, -WheelPendingLimit, WheelPendingLimit);
-                return;
+                if (_tabAnimating)
+                {
+                    int currentTarget = (int)Math.Round(_tabAnimTo);
+                    int wanted = Math.Clamp(currentTarget + _wheelPendingSteps + dir, 0, _tabPages.Length - 1);
+                    _wheelPendingSteps = Math.Clamp(wanted - currentTarget, -WheelPendingLimit, WheelPendingLimit);
+                }
+                else
+                {
+                    RequestWheelStep(dir);
+                }
             }
 
-            RequestWheelStep(dir);
             return;
         }
 

@@ -91,6 +91,21 @@ CASES = {
     "multi_delta": (1, [-360], 0),
     "dynamic_calendar": (4, [-120], 0),
     "partial_reverse": (2, [100, -120], 0.0465),
+    "partial_remainder": (1, [-80, -80], 0.0465),
+    "state_reset": (2, [80, "collapse", "expand", 40], 0.0465),
+    "pending_reset": (1, [-120, -120, "collapse", "expand", 0], 0.0465),
+    "near_edge_multi": (4, [-360], 0),
+    "zero_delta": (1, [0], 0),
+}
+
+# Behavioral expectations for the input-normalization stage, not timing assertions.
+INPUT_EXPECTATIONS = {
+    "one": (2, 0, 1), "three": (4, 0, 3), "reverse": (2, 0, 2),
+    "first_edge": (0, 0, 0), "last_edge": (5, 0, 0),
+    "remainder": (3, 0, 2), "multi_delta": (4, 0, 3),
+    "dynamic_calendar": (5, 0, 1), "partial_reverse": (3, 0, 1),
+    "partial_remainder": (2, -40, 1), "state_reset": (2, 40, 0),
+    "pending_reset": (2, 0, 1), "near_edge_multi": (5, 0, 1), "zero_delta": (1, 0, 0),
 }
 
 
@@ -103,7 +118,7 @@ def summarize(trace, measurements):
         end = next(float(r["time_ms"]) for r in rows if r["event"] == "mark_end_" + tag)
         sample = [r for r in rows if begin <= float(r["time_ms"]) <= end]
         wheels = [r for r in sample if r["event"] == "wheel"]
-        if len(wheels) != len(CASES[measurement["case"]][1]):
+        if len(wheels) != sum(isinstance(action, int) for action in CASES[measurement["case"]][1]):
             raise RuntimeError(f"Missing input events: {tag}")
         frames = [r for r in sample if r["event"] == "frame"]
         if not frames:
@@ -125,7 +140,10 @@ def summarize(trace, measurements):
             "final_page_position": final_position,
             "final_remainder": int(frames[-1]["remainder"]),
             "initial_remainder": int(wheels[0]["remainder"]),
+            "final_pending": int(frames[-1]["pending"]),
+            "final_queued": int(frames[-1]["queued"]),
             "step_count": sum(r["event"] == "step_start" for r in sample),
+            "finish_count": sum(r["event"] == "step_finish" for r in sample),
             "truncated": frames[-1]["animating"] == "True" or frames[-1]["size_settled"] == "False",
             "max_callback_interval_ms": round(max(intervals, default=0), 2),
             "callback_intervals_over_33ms": sum(v > 33 for v in intervals),
@@ -138,6 +156,7 @@ def main():
     parser.add_argument("--exe", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=3, choices=range(1, 11))
+    parser.add_argument("--check-input", action="store_true", help="Assert stage-2 input behavior")
     args = parser.parse_args()
     exe, out = args.exe.resolve(), args.out.resolve()
     if not exe.is_file():
@@ -173,8 +192,10 @@ def main():
             raise ctypes.WinError(ctypes.get_last_error())
         time.sleep(2)
         for repeat in range(args.repeats):
-            for name, (page, deltas, gap) in CASES.items():
+            for name, (page, actions, gap) in CASES.items():
                 tag = f"{name}_{repeat}"
+                # Begin each case in a fresh expanded input state; retain app/services for timing.
+                send(user, hwnd, "collapse")
                 send(user, hwnd, f"tab:{page}")
                 # Explicit page requests may traverse all five pages.
                 time.sleep(1.8)
@@ -188,9 +209,10 @@ def main():
                 send(user, hwnd, f"probe:mark:begin_{tag}")
                 start = time.perf_counter()
                 start_cpu = cpu_ms(kernel, handle)
-                for index, delta in enumerate(deltas):
+                for index, action in enumerate(actions):
                     wait_until(start + index * gap)
-                    send(user, hwnd, f"probe:wheel:{delta}")
+                    command = f"probe:wheel:{action}" if isinstance(action, int) else action
+                    send(user, hwnd, command)
                 wait_until(start + 0.240)
                 cpu_240 = cpu_ms(kernel, handle) - start_cpu
                 elapsed_240 = (time.perf_counter() - start) * 1000
@@ -239,6 +261,17 @@ def main():
               f"{statistics.median(r['net_cpu_900_ms'] for r in cases):.1f}ms")
     if any(r["truncated"] for r in summary):
         raise RuntimeError("Some transitions did not settle within the observation window; inspect summary.json")
+    if args.check_input:
+        for result in summary:
+            expected = INPUT_EXPECTATIONS[result["case"]]
+            actual = (result["final_page_position"], result["final_remainder"], result["step_count"])
+            if actual != expected:
+                raise AssertionError(f"{result['tag']}: expected position/remainder/steps={expected}, got {actual}")
+            if result["initial_remainder"] or result["final_pending"] or result["final_queued"]:
+                raise AssertionError(f"{result['tag']}: input/queue leaked between cases")
+            if result["finish_count"] != result["step_count"]:
+                raise AssertionError(f"{result['tag']}: unexpected repeated completion callbacks")
+        print(f"Input assertions passed: {len(summary)} cases", flush=True)
 
 
 if __name__ == "__main__":
