@@ -134,8 +134,40 @@ Release 编译通过。21 个场景各 3 轮，共 63 项检查通过；最终�
 
 岛体尺寸仍独立运动：三格场景尺寸尾延迟约 546.5ms，点击跨五页约 1546.9ms。因此这里的 296.5ms 是页面逻辑结束，不是整个画面停止。页面锚定、尺寸收尾与裁剪仍需后续阶段解决。本阶段没有启用 BitmapCache 或修改阴影结构。
 
+## 第四阶段：页面布局和锚定
+
+### 改动
+
+- 六页分别使用自己的最终宽高，顶部锚定、水平居中。共享视口按最大页面尺寸固定，不再随着岛体每帧伸缩；岛体只裁剪固定布局的内容。
+- 分页点仍在外层跟随岛体，不会因为固定大视口而被挤到短页面底部之外。
+- 媒体页头和歌词/频谱合为同一页。切到其他页不再隐藏共享页头、重新分配所有页面的高度；出场媒体页仍保持完整布局。
+- 展开后的封面在媒体页内随整页移动，开合时仍使用原有 morph 层；页内封面复用换歌缩放，并保留换歌淡入。
+- 未修改滚轮弹簧、点击时长、透明度指数、阴影或尺寸弹簧。
+
+### 验证
+
+```powershell
+dotnet run --project tools/PagingLayout.SelfTest -c Release -- artifacts/paging-layout-stage4-new
+dotnet run --project tools/LauncherLayout.SelfTest -c Release
+dotnet run --project tools/HistoryScrollbars.SelfTest -c Release
+python tools/paging_baseline.py --exe src/DynamicIsland/bin/Release/net10.0-windows10.0.19041.0/win-x64/DynamicIsland.exe --out artifacts/paging-baseline-stage4-new --repeats 1 --check-glide
+```
+
+新增布局检查加载实际编译的 MainWindow，在隔离数据目录中构造 30 条通知和 42 个日历日期。它使用普通 Application 加载真实资源，并移除窗口 Loaded 入口，断言未创建 HWND/托盘、未显示窗口，避免测试意外启动后台服务。早期夹具曾因消息循环触发 App.Startup，其耗时数据不采用；以下仅使用修正后的独立夹具。
+
+本机结果（2026-11-01）：
+
+- 100%、125%、150%、175%、200% 五档 DPI，共 35 组岛体尺寸变化、每组六页，尺寸与锚点检查通过。最大锚点误差 0.3334 DIP，来自像素取整，未出现随高度变化的几十像素漂移。
+- 媒体正文高度保持不变；隐藏媒体页头不会推动其他页；切换 ActiveTab 不会提前隐藏出场媒体页头。
+- 30 项通知在每轮 160 次岛体变形中，通知页及内容子树 SizeChanged 次数为 0，滚动末尾仍可达。
+- 同一份 XAML 的离屏布局 A/B：固定尺寸 160 次约 15.0ms，临时恢复 Stretch 的对照约 2330.7ms（三轮中位数）。这只是布局压力测试，未计光栅化、阴影和合成，不能外推成整个应用帧率或 CPU 的提升倍数。
+- 图标坞 25 组检查、历史滚动条 16 项检查、翻页追目标 21 个场景检查全部通过。翻页复测单轮三格逻辑尾延迟约 301ms，与第三阶段接近；本阶段不以缩短动画时长为目标。
+
+原始结果：`artifacts/paging-layout-stage4-final/summary.json`、同目录六页静态渲染及动态到日历五个中间态渲染，以及 `artifacts/paging-baseline-stage4/summary.json`。
+
+目视核对使用离屏渲染，完整日历与媒体页未出现静态内容截断，中间态由岛体边界裁剪。computer-use 未暴露可选的测试窗口，因此本阶段没有实际窗口录屏或真实鼠标体验验证。中间态渲染是指定位置/尺寸的采样，不是宣称真实尺寸弹簧已经同步；尺寸余震、早期裁剪与透明度节奏继续由第五、六阶段处理。
+
 ## 后续阶段
 
-4. 出入场页面分别固定布局和锚点，处理媒体页头。
 5. 切页尺寸用定时通道收尾。
 6. 透明度、时长与曲线打磨，真实设备和逐帧验收。

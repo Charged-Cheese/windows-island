@@ -280,244 +280,10 @@
                     <Grid.RenderTransform>
                         <TranslateTransform x:Name="ExpandedShift" />
                     </Grid.RenderTransform>
-                    <Grid Margin="12,10,22,10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <!-- 媒体头：只在音乐页 / 歌词页显示；其它功能页（日历、通知…）
-                             把这一块高度整块让给内容，不再固定占位。 -->
-                        <Grid x:Name="MediaHeader" Grid.Row="0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="48" />
-                                <RowDefinition Height="14" />
-                            </Grid.RowDefinitions>
-
-                        <!-- 媒体条：封面 / 标题 / 控制 -->
-                        <Grid Grid.Row="0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <!-- 封面占位：同样交给 MorphCover 绘制，46×46 位置保持不动 -->
-                            <Border x:Name="ExpandedCoverSlot" Grid.Column="0" Width="46" Height="46" CornerRadius="12"
-                                    Margin="0,0,11,0" VerticalAlignment="Center" Opacity="0">
-                                <Border.Background>
-                                    <ImageBrush ImageSource="{Binding Cover}" Stretch="UniformToFill" />
-                                </Border.Background>
-                            </Border>
-
-                            <StackPanel Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="ExpandedTitleText" Text="{Binding Title}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
-                                           FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"
-                                           TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Artist}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,2,0,0"
-                                           TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-
-                            <StackPanel x:Name="MediaControls" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
-                                        Margin="0,0,2,0">
-                                <!-- 主操作实心强调，其余幽灵钮：同尺寸、同基线，只有播放键抢视觉重量 -->
-                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
-                                        Margin="-3,0,-3,0" MouseLeftButtonUp="PrevButton_Click">
-                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            IsHitTestVisible="False">
-                                        <TextBlock Text="&#xE892;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                </Border>
-                                <Border Width="36" Height="36" Background="Transparent" Cursor="Hand"
-                                        Margin="2,0" MouseLeftButtonUp="PlayButton_Click">
-                                    <Border Width="30" Height="30" CornerRadius="15" Background="{DynamicResource AccentBrush}"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            IsHitTestVisible="False">
-                                        <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeMd}"
-                                                   Foreground="{DynamicResource IslandBgBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                </Border>
-                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
-                                        Margin="-3,0" MouseLeftButtonUp="NextButton_Click">
-                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            IsHitTestVisible="False">
-                                        <TextBlock Text="&#xE893;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                </Border>
-                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
-                                        Margin="2,0" ToolTip="切换播放器来源"
-                                        Visibility="{Binding CanSwitchSource, Converter={StaticResource BoolToVis}}"
-                                        MouseLeftButtonUp="SwitchSource_Click">
-                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            IsHitTestVisible="False">
-                                        <TextBlock Text="⇄" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                </Border>
-                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
-                                        Margin="2,0" ToolTip="静音 / 取消静音" MouseLeftButtonUp="MuteButton_Click">
-                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            IsHitTestVisible="False">
-                                        <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeSm}"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                </Border>
-                                <!-- 展开态的日历入口：悬停展开后点这里直接进日历 -->
-                                <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
-                                        Margin="2,0" ToolTip="日历" MouseLeftButtonUp="PillCalendar_Click">
-                                    <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
-                                            BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            IsHitTestVisible="False">
-                                        <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="8"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                </Border>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- 进度条：已播放 / 拖动跳转 / 剩余时间 -->
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0" Text="{Binding PositionText}" FontFamily="{StaticResource UiFont}"
-                                       FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource TertiaryTextBrush}"
-                                       VerticalAlignment="Center" Margin="0,0,6,0" />
-
-                            <Grid x:Name="ProgressArea" Grid.Column="1" Height="14"
-                                  VerticalAlignment="Center" Background="Transparent" Cursor="Hand"
-                                  MouseLeftButtonDown="Progress_MouseDown"
-                                  MouseMove="Progress_MouseMove"
-                                  MouseLeftButtonUp="Progress_MouseUp">
-                                <Border x:Name="ProgressTrack" CornerRadius="2"
-                                        Background="{DynamicResource TrackBrush}" VerticalAlignment="Center">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Height" Value="4" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSeeking}" Value="True">
-                                                    <Setter Property="Height" Value="6" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                </Border>
-                                <Border HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="2"
-                                        Background="{DynamicResource AccentBrush}" IsHitTestVisible="False">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Height" Value="4" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSeeking}" Value="True">
-                                                    <Setter Property="Height" Value="6" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                    <Border.Width>
-                                        <MultiBinding Converter="{StaticResource RatioToWidth}">
-                                            <Binding Path="ProgressRatio" />
-                                            <Binding ElementName="ProgressTrack" Path="ActualWidth" />
-                                        </MultiBinding>
-                                    </Border.Width>
-                                </Border>
-                                <Ellipse Width="24" Height="24" Fill="{DynamicResource AccentBrush}"
-                                         HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Opacity" Value="0" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSeeking}" Value="True">
-                                                    <Setter Property="Opacity" Value="0.22" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                    <Ellipse.Margin>
-                                        <MultiBinding Converter="{StaticResource RatioToThumbMargin}"
-                                                      ConverterParameter="24">
-                                            <Binding Path="ProgressRatio" />
-                                            <Binding ElementName="ProgressTrack" Path="ActualWidth" />
-                                        </MultiBinding>
-                                    </Ellipse.Margin>
-                                </Ellipse>
-                                <Ellipse Width="8" Height="8" Fill="#FFFFFFFF"
-                                         HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Width" Value="8" />
-                                            <Setter Property="Height" Value="8" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSeeking}" Value="True">
-                                                    <Setter Property="Width" Value="10" />
-                                                    <Setter Property="Height" Value="10" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                    <Ellipse.Margin>
-                                        <MultiBinding Converter="{StaticResource RatioToThumbMargin}"
-                                                      ConverterParameter="8">
-                                            <Binding Path="ProgressRatio" />
-                                            <Binding ElementName="ProgressTrack" Path="ActualWidth" />
-                                        </MultiBinding>
-                                    </Ellipse.Margin>
-                                </Ellipse>
-                            </Grid>
-
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
-                                <TextBlock Text="{Binding RemainText}" FontFamily="{StaticResource UiFont}"
-                                           FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource TertiaryTextBrush}"
-                                           VerticalAlignment="Center" />
-                                <Border x:Name="VolumeTrack" Width="44" Height="4" CornerRadius="2"
-                                        Background="{DynamicResource TrackBrush}" Margin="9,0,0,0"
-                                        VerticalAlignment="Center" Cursor="Hand" ToolTip="拖动调音量，单击静音"
-                                        MouseLeftButtonDown="VolumeTrack_MouseDown"
-                                        MouseMove="VolumeTrack_MouseMove"
-                                        MouseLeftButtonUp="VolumeTrack_MouseUp">
-                                    <Border HorizontalAlignment="Left" CornerRadius="2"
-                                            Background="{DynamicResource AccentBrush}" Opacity="0.85">
-                                        <Border.Width>
-                                            <MultiBinding Converter="{StaticResource RatioToWidth}">
-                                                <Binding Path="VolumeRatio" />
-                                                <Binding ElementName="VolumeTrack" Path="ActualWidth" />
-                                            </MultiBinding>
-                                        </Border.Width>
-                                    </Border>
-                                </Border>
-                            </StackPanel>
-                        </Grid>
-                        </Grid>
-
-                        <!-- 内容容器：不再叠一层卡片玻璃，页面内容直接浮在岛体上。
-                             之前这里 CardSurfaceBrush + 1px 边框 = 第 5 层半透明白，
-                             叠在岛体渐变上会把内容区的对比压平。 -->
-                        <Border Grid.Row="1" CornerRadius="14" Background="Transparent"
-                                Padding="2,5,2,1" Margin="0,2,0,0">
-                            <Grid ClipToBounds="True">
-
-                                <!-- 媒体页：歌词 -->
+                    <!-- 固定最大视口：只由岛体裁剪，每页按自己的目标尺寸排版。 -->
+                    <Grid x:Name="TabPagesViewport" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Grid x:Name="TabPagesHost" Margin="12,10,22,10">
+                                <!-- 媒体页连同页头一起移动，其他页不再借用它的布局行。 -->
                                 <Grid x:Name="MediaPage" RenderTransformOrigin="0.5,0.5">
                                     <Grid.RenderTransform>
                                         <TransformGroup>
@@ -525,70 +291,302 @@
                                             <TranslateTransform />
                                         </TransformGroup>
                                     </Grid.RenderTransform>
-                                    <StackPanel VerticalAlignment="Center"
-                                                Visibility="{Binding HasLyrics, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="{Binding LyricPrevious}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource TertiaryTextBrush}"
-                                                   TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
-                                        <TextBlock Text="{Binding LyricCurrent}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="{StaticResource FontSizeXl}" FontWeight="SemiBold"
-                                                   Foreground="{Binding LyricCurrentBrush}"
-                                                   TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"
-                                                   Margin="0,5,0,5" />
-                                        <TextBlock Text="{Binding LyricNext}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource SecondaryTextBrush}"
-                                                   TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
-                                        <TextBlock Text="{Binding LyricNext2}" FontFamily="{StaticResource UiFont}"
-                                                   FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource TertiaryTextBrush}"
-                                                   TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"
-                                                   Margin="0,3,0,0" />
-                                    </StackPanel>
-                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                                                Visibility="{Binding HasLyrics, Converter={StaticResource InverseBoolToVis}}">
-                                        <StackPanel Orientation="Horizontal" Height="26" HorizontalAlignment="Center">
-                                            <!-- 柱子统一按 26 布局，播放时只缩放 ScaleY：
-                                                 Height 动画每帧都要重新测量，6 根一起做在软件渲染下很亏 -->
-                                            <Border x:Name="Spectrum0" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.55" RenderTransformOrigin="0.5,1">
-                                                <Border.RenderTransform>
-                                                    <ScaleTransform ScaleY="0.38" />
-                                                </Border.RenderTransform>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <!-- 媒体页独有页头：随整页滑动和淡出，不再占用其它页的布局行。 -->
+                                    <Grid x:Name="MediaHeader" Grid.Row="0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="48" />
+                                            <RowDefinition Height="14" />
+                                        </Grid.RowDefinitions>
+
+                                    <!-- 媒体条：封面 / 标题 / 控制 -->
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- 展开后由页内封面随页移动；开合途中交给 MorphCover。 -->
+                                        <Border x:Name="ExpandedCoverSlot" Grid.Column="0" Width="46" Height="46" CornerRadius="12"
+                                                Margin="0,0,11,0" VerticalAlignment="Center" Opacity="0">
+                                            <Border.Background>
+                                                <ImageBrush x:Name="ExpandedCoverBrush" ImageSource="{Binding Cover}" Stretch="UniformToFill" />
+                                            </Border.Background>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBlock x:Name="ExpandedTitleText" Text="{Binding Title}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeLg}"
+                                                       FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Artist}" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
+                                                       Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,2,0,0"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+
+                                        <StackPanel x:Name="MediaControls" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                                                    Margin="0,0,2,0">
+                                            <!-- 主操作实心强调，其余幽灵钮：同尺寸、同基线，只有播放键抢视觉重量 -->
+                                            <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                                    Margin="-3,0,-3,0" MouseLeftButtonUp="PrevButton_Click">
+                                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        IsHitTestVisible="False">
+                                                    <TextBlock Text="&#xE892;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
                                             </Border>
-                                            <Border x:Name="Spectrum1" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.75" RenderTransformOrigin="0.5,1">
-                                                <Border.RenderTransform>
-                                                    <ScaleTransform ScaleY="0.69" />
-                                                </Border.RenderTransform>
+                                            <Border Width="36" Height="36" Background="Transparent" Cursor="Hand"
+                                                    Margin="2,0" MouseLeftButtonUp="PlayButton_Click">
+                                                <Border Width="30" Height="30" CornerRadius="15" Background="{DynamicResource AccentBrush}"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        IsHitTestVisible="False">
+                                                    <TextBlock Text="{Binding PlayGlyph}" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeMd}"
+                                                               Foreground="{DynamicResource IslandBgBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
                                             </Border>
-                                            <Border x:Name="Spectrum2" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" RenderTransformOrigin="0.5,1">
-                                                <Border.RenderTransform>
-                                                    <ScaleTransform ScaleY="1" />
-                                                </Border.RenderTransform>
+                                            <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                                    Margin="-3,0" MouseLeftButtonUp="NextButton_Click">
+                                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        IsHitTestVisible="False">
+                                                    <TextBlock Text="&#xE893;" FontFamily="{StaticResource IconFont}" FontSize="7.5"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
                                             </Border>
-                                            <Border x:Name="Spectrum3" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.65" RenderTransformOrigin="0.5,1">
-                                                <Border.RenderTransform>
-                                                    <ScaleTransform ScaleY="0.54" />
-                                                </Border.RenderTransform>
+                                            <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                                    Margin="2,0" ToolTip="切换播放器来源"
+                                                    Visibility="{Binding CanSwitchSource, Converter={StaticResource BoolToVis}}"
+                                                    MouseLeftButtonUp="SwitchSource_Click">
+                                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        IsHitTestVisible="False">
+                                                    <TextBlock Text="⇄" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeSm}"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
                                             </Border>
-                                            <Border x:Name="Spectrum4" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.85" RenderTransformOrigin="0.5,1">
-                                                <Border.RenderTransform>
-                                                    <ScaleTransform ScaleY="0.77" />
-                                                </Border.RenderTransform>
+                                            <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                                    Margin="2,0" ToolTip="静音 / 取消静音" MouseLeftButtonUp="MuteButton_Click">
+                                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        IsHitTestVisible="False">
+                                                    <TextBlock Text="{Binding VolumeGlyph}" FontFamily="{StaticResource IconFont}" FontSize="{StaticResource FontSizeSm}"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
                                             </Border>
-                                            <Border x:Name="Spectrum5" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
-                                                    VerticalAlignment="Bottom" Margin="2,0" Opacity="0.5" RenderTransformOrigin="0.5,1">
-                                                <Border.RenderTransform>
-                                                    <ScaleTransform ScaleY="0.31" />
-                                                </Border.RenderTransform>
+                                            <!-- 展开态的日历入口：悬停展开后点这里直接进日历 -->
+                                            <Border Width="26" Height="26" Background="Transparent" Cursor="Hand"
+                                                    Margin="2,0" ToolTip="日历" MouseLeftButtonUp="PillCalendar_Click">
+                                                <Border Width="20" Height="20" CornerRadius="10" Background="Transparent"
+                                                        BorderBrush="{DynamicResource ControlBrush}" BorderThickness="1"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        IsHitTestVisible="False">
+                                                    <TextBlock Text="&#xE787;" FontFamily="{StaticResource IconFont}" FontSize="8"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
                                             </Border>
                                         </StackPanel>
-                                        <TextBlock Text="暂无歌词" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
-                                                   Foreground="{DynamicResource TertiaryTextBrush}"
-                                                   HorizontalAlignment="Center" Margin="0,8,0,0" />
-                                    </StackPanel>
+                                    </Grid>
+
+                                    <!-- 进度条：已播放 / 拖动跳转 / 剩余时间 -->
+                                    <Grid Grid.Row="1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" Text="{Binding PositionText}" FontFamily="{StaticResource UiFont}"
+                                                   FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+
+                                        <Grid x:Name="ProgressArea" Grid.Column="1" Height="14"
+                                              VerticalAlignment="Center" Background="Transparent" Cursor="Hand"
+                                              MouseLeftButtonDown="Progress_MouseDown"
+                                              MouseMove="Progress_MouseMove"
+                                              MouseLeftButtonUp="Progress_MouseUp">
+                                            <Border x:Name="ProgressTrack" CornerRadius="2"
+                                                    Background="{DynamicResource TrackBrush}" VerticalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Height" Value="4" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSeeking}" Value="True">
+                                                                <Setter Property="Height" Value="6" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                            </Border>
+                                            <Border HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="2"
+                                                    Background="{DynamicResource AccentBrush}" IsHitTestVisible="False">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Height" Value="4" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSeeking}" Value="True">
+                                                                <Setter Property="Height" Value="6" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Border.Width>
+                                                    <MultiBinding Converter="{StaticResource RatioToWidth}">
+                                                        <Binding Path="ProgressRatio" />
+                                                        <Binding ElementName="ProgressTrack" Path="ActualWidth" />
+                                                    </MultiBinding>
+                                                </Border.Width>
+                                            </Border>
+                                            <Ellipse Width="24" Height="24" Fill="{DynamicResource AccentBrush}"
+                                                     HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Opacity" Value="0" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSeeking}" Value="True">
+                                                                <Setter Property="Opacity" Value="0.22" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                                <Ellipse.Margin>
+                                                    <MultiBinding Converter="{StaticResource RatioToThumbMargin}"
+                                                                  ConverterParameter="24">
+                                                        <Binding Path="ProgressRatio" />
+                                                        <Binding ElementName="ProgressTrack" Path="ActualWidth" />
+                                                    </MultiBinding>
+                                                </Ellipse.Margin>
+                                            </Ellipse>
+                                            <Ellipse Width="8" Height="8" Fill="#FFFFFFFF"
+                                                     HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Width" Value="8" />
+                                                        <Setter Property="Height" Value="8" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSeeking}" Value="True">
+                                                                <Setter Property="Width" Value="10" />
+                                                                <Setter Property="Height" Value="10" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                                <Ellipse.Margin>
+                                                    <MultiBinding Converter="{StaticResource RatioToThumbMargin}"
+                                                                  ConverterParameter="8">
+                                                        <Binding Path="ProgressRatio" />
+                                                        <Binding ElementName="ProgressTrack" Path="ActualWidth" />
+                                                    </MultiBinding>
+                                                </Ellipse.Margin>
+                                            </Ellipse>
+                                        </Grid>
+
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
+                                            <TextBlock Text="{Binding RemainText}" FontFamily="{StaticResource UiFont}"
+                                                       FontSize="{StaticResource FontSizeSm}" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                            <Border x:Name="VolumeTrack" Width="44" Height="4" CornerRadius="2"
+                                                    Background="{DynamicResource TrackBrush}" Margin="9,0,0,0"
+                                                    VerticalAlignment="Center" Cursor="Hand" ToolTip="拖动调音量，单击静音"
+                                                    MouseLeftButtonDown="VolumeTrack_MouseDown"
+                                                    MouseMove="VolumeTrack_MouseMove"
+                                                    MouseLeftButtonUp="VolumeTrack_MouseUp">
+                                                <Border HorizontalAlignment="Left" CornerRadius="2"
+                                                        Background="{DynamicResource AccentBrush}" Opacity="0.85">
+                                                    <Border.Width>
+                                                        <MultiBinding Converter="{StaticResource RatioToWidth}">
+                                                            <Binding Path="VolumeRatio" />
+                                                            <Binding ElementName="VolumeTrack" Path="ActualWidth" />
+                                                        </MultiBinding>
+                                                    </Border.Width>
+                                                </Border>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                    </Grid>
+                                    <Border Grid.Row="1" CornerRadius="14" Background="Transparent"
+                                            Padding="2,5,2,1" Margin="0,2,0,0">
+                                        <!-- 歌词 / 频谱 -->
+                                        <Grid x:Name="MediaBody">
+                                            <StackPanel VerticalAlignment="Center"
+                                                        Visibility="{Binding HasLyrics, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="{Binding LyricPrevious}" FontFamily="{StaticResource UiFont}"
+                                                           FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                           TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{Binding LyricCurrent}" FontFamily="{StaticResource UiFont}"
+                                                           FontSize="{StaticResource FontSizeXl}" FontWeight="SemiBold"
+                                                           Foreground="{Binding LyricCurrentBrush}"
+                                                           TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"
+                                                           Margin="0,5,0,5" />
+                                                <TextBlock Text="{Binding LyricNext}" FontFamily="{StaticResource UiFont}"
+                                                           FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource SecondaryTextBrush}"
+                                                           TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{Binding LyricNext2}" FontFamily="{StaticResource UiFont}"
+                                                           FontSize="{StaticResource FontSizeBase}" Foreground="{DynamicResource TertiaryTextBrush}"
+                                                           TextTrimming="CharacterEllipsis" HorizontalAlignment="Center"
+                                                           Margin="0,3,0,0" />
+                                            </StackPanel>
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                        Visibility="{Binding HasLyrics, Converter={StaticResource InverseBoolToVis}}">
+                                                <StackPanel Orientation="Horizontal" Height="26" HorizontalAlignment="Center">
+                                                    <!-- 柱子统一按 26 布局，播放时只缩放 ScaleY：
+                                                         Height 动画每帧都要重新测量，6 根一起做在软件渲染下很亏 -->
+                                                    <Border x:Name="Spectrum0" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                            VerticalAlignment="Bottom" Margin="2,0" Opacity="0.55" RenderTransformOrigin="0.5,1">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleY="0.38" />
+                                                        </Border.RenderTransform>
+                                                    </Border>
+                                                    <Border x:Name="Spectrum1" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                            VerticalAlignment="Bottom" Margin="2,0" Opacity="0.75" RenderTransformOrigin="0.5,1">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleY="0.69" />
+                                                        </Border.RenderTransform>
+                                                    </Border>
+                                                    <Border x:Name="Spectrum2" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                            VerticalAlignment="Bottom" Margin="2,0" RenderTransformOrigin="0.5,1">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleY="1" />
+                                                        </Border.RenderTransform>
+                                                    </Border>
+                                                    <Border x:Name="Spectrum3" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                            VerticalAlignment="Bottom" Margin="2,0" Opacity="0.65" RenderTransformOrigin="0.5,1">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleY="0.54" />
+                                                        </Border.RenderTransform>
+                                                    </Border>
+                                                    <Border x:Name="Spectrum4" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                            VerticalAlignment="Bottom" Margin="2,0" Opacity="0.85" RenderTransformOrigin="0.5,1">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleY="0.77" />
+                                                        </Border.RenderTransform>
+                                                    </Border>
+                                                    <Border x:Name="Spectrum5" Width="3" Height="26" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                                            VerticalAlignment="Bottom" Margin="2,0" Opacity="0.5" RenderTransformOrigin="0.5,1">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleY="0.31" />
+                                                        </Border.RenderTransform>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="暂无歌词" FontFamily="{StaticResource UiFont}" FontSize="{StaticResource FontSizeBase}"
+                                                           Foreground="{DynamicResource TertiaryTextBrush}"
+                                                           HorizontalAlignment="Center" Margin="0,8,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
                                 </Grid>
 
                                 <!-- 天气页：大温度 + 图标 + 指标 + 三日预报小卡 -->
@@ -1263,9 +1261,7 @@
                                         </Border>
                                     </Grid>
                                 </Grid>
-                            </Grid>
-                        </Border>
-
+                        </Grid>
                     </Grid>
 
                     <!-- 右侧分页点：活动项拉长成胶囊，点击可切页；滚轮也能切 -->
@@ -1362,7 +1358,7 @@
 
                 <!-- ==================== 封面 morph 层 ==================== -->
                 <!-- 折叠 24 圆 → 展开 46 圆角方形：同一个元素跟着岛体高度插值尺寸和位置，
-                     折叠/展开两套内容里的封面只保留布局占位。圆角固定 12，
+                     开合途中页内封面只保留布局占位，展开后交回媒体页。圆角固定 12，
                      尺寸连续变大时形状会自然从圆形过渡到圆角方形（参考灵动岛的做法）。 -->
                 <Border x:Name="MorphCover" Width="46" Height="46" CornerRadius="12"
                         HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,11,0,0"

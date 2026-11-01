@@ -238,6 +238,8 @@ public partial class MainWindow : Window
         {
             MediaPage, WeatherPage, HardwarePage, LauncherPage, NotificationPage, CalendarPage
         };
+        ExpandedCoverSlot.RenderTransform = CoverSwap;
+        UpdateExpandedContentLayout();
         _tabDots = new Border[]
         {
             TabDotIndicator0, TabDotIndicator1, TabDotIndicator2,
@@ -375,9 +377,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // 音乐/歌词页才有封面位；展开状态下切到其它功能页要把封面一起收掉
+        // 展开后由媒体页内的封面跟随整页滑动；折叠/展开过程仍使用 morph 层。
+        bool pageCover = _state == IslandState.Expanded &&
+            (_tabAnimating || !TabShowsMedia(_viewModel.ActiveTab) || height >= ExpandedHeight - 0.5);
+        ExpandedCoverSlot.Opacity = pageCover ? 1 : 0;
         bool hideForPage = _state == IslandState.Expanded && !TabShowsMedia(_viewModel.ActiveTab);
-        if (_state == IslandState.Notification || hideForPage
+        if (_state == IslandState.Notification || hideForPage || pageCover
             || !_viewModel.HasMedia || _viewModel.Cover is null)
         {
             MorphCover.Visibility = Visibility.Collapsed;
@@ -870,30 +875,32 @@ public partial class MainWindow : Window
         ApplyContentFade(_spring.Height);
     }
 
-    /// <summary>按当前页设置媒体条和展开内容的布局。</summary>
+    /// <summary>所有页面按各自最终尺寸布局。父岛体变化只裁剪，不重新拉伸页面。</summary>
     private void UpdateExpandedContentLayout()
     {
-        if (MediaHeader is null)
+        if (_tabPages is null)
         {
             return;
         }
 
-        MediaHeader.Visibility = TabShowsMedia(_viewModel.ActiveTab)
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-        // 图标坞按最终展开尺寸排版，外层岛体只负责裁剪。
-        // 快速开关时不能让图标跟着每一帧的岛宽重新挤压、换行。
-        bool launcher = _viewModel.ActiveTab == 3;
-        (double width, double height) = SizeForTab(_viewModel.ActiveTab);
-        ExpandedContent.Width = launcher
-            ? width - Island.BorderThickness.Left - Island.BorderThickness.Right
-            : double.NaN;
-        ExpandedContent.Height = launcher
-            ? height - Island.BorderThickness.Top - Island.BorderThickness.Bottom
-            : double.NaN;
-        ExpandedContent.HorizontalAlignment = launcher ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
-        ExpandedContent.VerticalAlignment = launcher ? VerticalAlignment.Top : VerticalAlignment.Stretch;
+        double borderX = Island.BorderThickness.Left + Island.BorderThickness.Right;
+        double borderY = Island.BorderThickness.Top + Island.BorderThickness.Bottom;
+        TabPagesViewport.Width = TabSizes.Max(s => s.Width) - borderX;
+        TabPagesViewport.Height = TabSizes.Max(s => s.Height) - borderY;
+        TabPagesViewport.HorizontalAlignment = HorizontalAlignment.Center;
+        TabPagesViewport.VerticalAlignment = VerticalAlignment.Top;
+        for (int i = 0; i < _tabPages.Length; i++)
+        {
+            (double width, double height) = SizeForTab(i);
+            FrameworkElement page = _tabPages[i];
+            bool media = i == 0;
+            // 34x20 为视口内边距；普通页额外保留旧内容容器的 4x8 间距。
+            page.Width = width - borderX - (media ? 34 : 38);
+            page.Height = height - borderY - (media ? 20 : 28);
+            page.Margin = media ? new Thickness(0) : new Thickness(2, 7, 2, 1);
+            page.HorizontalAlignment = HorizontalAlignment.Center;
+            page.VerticalAlignment = VerticalAlignment.Top;
+        }
     }
 
     /// <summary>通知卡入场：从上方略小开始落位，避免硬切。</summary>
@@ -1760,6 +1767,7 @@ public partial class MainWindow : Window
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
         MorphCover.BeginAnimation(OpacityProperty, fade);
+        ExpandedCoverBrush.BeginAnimation(Brush.OpacityProperty, fade);
     }
 
     /// <summary>换歌时控制区跟着交叉淡入，避免新歌的按钮一下子跳出来。</summary>
