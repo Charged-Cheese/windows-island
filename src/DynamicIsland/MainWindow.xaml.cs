@@ -232,6 +232,8 @@ public partial class MainWindow : Window
         _fullscreenTimer.Tick += (_, _) => CheckFullscreen();
 
         _spring.Updated += OnSpringUpdated;
+        _spring.SizeTransition += OnSizeTransition;
+        SystemParameters.StaticPropertyChanged += OnSystemMotionChanged;
         ApplyMotionStyle();
 
         _tabPages = new FrameworkElement[]
@@ -820,7 +822,8 @@ public partial class MainWindow : Window
         };
 
         UpdateContent(state);
-        _spring.SetTarget(width, height, radius);
+        if (_clientAreaAnimation) _spring.SetTarget(width, height, radius);
+        else _spring.SnapTo(width, height, radius);
         UpdateIslandHitRect();
 
         if (state != IslandState.Collapsed)
@@ -2196,12 +2199,8 @@ public partial class MainWindow : Window
         {
             // 切页同时换面板尺寸：日历要 384 高，通知要 236，音乐只要 184
             UpdateExpandedContentLayout();
-            if (_state == IslandState.Expanded)
-            {
-                (double width, double height) = SizeForTab(_viewModel.ActiveTab);
-                _spring.SetTarget(width, height, ExpandedRadius);
-                UpdateIslandHitRect();
-            }
+            // 尺寸目标由 StartTabStep/StartWheelGlide 设置，避免点击远页时
+            // 先接向最终页、随后又回到第一步。状态机仍接管开合/通知。
 
             // bloom 跟着页面走：媒体页（含歌词）强一些，其他页弱一些
             ThemeManager.SetBloomStrength(TabShowsMedia(_viewModel.ActiveTab) ? 0.12 : 0.07);
@@ -2335,11 +2334,12 @@ public partial class MainWindow : Window
         // 让 ViewModel 切到目标页：内容可见性、页头、bloom 强度、岛体高度弹簧都在那里。
         // 必须放在动画开始之前，否则滑进来的还是旧内容——那就是"先清空再加载"。
         SyncTabTarget(target);
+        TargetPageSize(target, _tabAnimStart);
 
         BeginTabTransitionVisual();
 
         // 系统关了动画（减少动效）或时长为 0：直接落位，不播过渡。
-        if (!SystemParameters.ClientAreaAnimation || TabTransitionMs <= 0)
+        if (!_clientAreaAnimation || TabTransitionMs <= 0)
         {
             _tabPosition = target;
             ApplyTabTransition();
@@ -2356,6 +2356,18 @@ public partial class MainWindow : Window
 
     private void OnTabRendering(object? sender, EventArgs e)
     {
+        if (!_clientAreaAnimation)
+        {
+            _spring.SnapTo(_spring.TargetWidth, _spring.TargetHeight, _spring.TargetRadius);
+            if (_wheelGliding) FinishWheelGlide();
+            else
+            {
+                _tabPosition = _tabAnimTo;
+                ApplyTabTransition();
+                FinishTabStep();
+            }
+            return;
+        }
         if (_wheelGliding)
         {
             RenderWheelGlide();
@@ -2831,6 +2843,8 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        SystemParameters.StaticPropertyChanged -= OnSystemMotionChanged;
+        _spring.SizeTransition -= OnSizeTransition;
         StopPagingProbe();
         FrameProbe.Stop();
         _notificationTimer.Stop();

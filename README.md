@@ -4,6 +4,8 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 
 [更新说明](CHANGELOG.md) · [v1.0.4 发布说明](docs/releases/v1.0.4.md) · [后续开发计划（第五、六阶段）](docs/paging-future-plan.md)
 
+源码进度（尚未发布）：第五阶段已接入 240ms 切页尺寸定时通道并完成自动复测，桌面逐帧与真实鼠标验收待完成；第六阶段尚未开发，详见 [阶段记录](docs/paging-repair-progress.md)。
+
 ![展开态](docs/shots/desktop-expanded-v2.png)
 
 ## 功能
@@ -116,7 +118,7 @@ dotnet run --project .\tools\HistoryScrollbars.SelfTest\HistoryScrollbars.SelfTe
 dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csproj
 ```
 
-翻页调度、固定页面布局与后续工作的复测入口见 [阶段记录](docs/paging-repair-progress.md)。尺寸同步和透明度/节奏打磨尚未开发，范围和验收标准见 [后续计划](docs/paging-future-plan.md)。
+翻页调度、固定页面布局、尺寸定时通道与后续工作的复测入口见 [阶段记录](docs/paging-repair-progress.md)。尺寸通道已实现，桌面验收及透明度/节奏打磨仍待完成，范围和验收标准见 [后续计划](docs/paging-future-plan.md)。
 
 ## 数据目录
 
@@ -191,7 +193,7 @@ dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csp
 - 隐私点依赖 Windows 隐私记录，个别应用不写记录时可能不亮
 - 发布 ZIP 内置 .NET 10 桌面运行时；源码直接构建的框架依赖版本仍需安装运行时
 - 未做代码签名
-- v1.0.4 尚未完成尺寸动画同步、透明度与单格节奏打磨；详细开发内容与验收标准见 [后续计划](docs/paging-future-plan.md)
+- v1.0.4 发布包未包含尺寸动画同步、透明度与单格节奏打磨；当前源码已实现第五阶段尺寸通道，桌面验收待完成，第六阶段尚未开发；见 [后续计划](docs/paging-future-plan.md)
 
 ## 许可证
 

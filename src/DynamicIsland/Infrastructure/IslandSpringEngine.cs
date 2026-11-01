@@ -52,7 +52,13 @@ internal sealed class IslandSpringEngine : IDisposable
     private readonly SpringChannel _radius = new() { MinValue = 0 };
     // 悬停/拖入时的轻微纵向回弹（-4px 起始，回 0），和尺寸弹簧独立
     private readonly SpringChannel _nudge = new() { Stiffness = 260, Damping = 22 };
-    private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly Func<double> _seconds;
+    private bool _sizeTimed;
+    private double _fromWidth, _fromHeight, _fromRadius;
+
+    public IslandSpringEngine() : this(() => (double)Stopwatch.GetTimestamp() / Stopwatch.Frequency) { }
+
+    internal IslandSpringEngine(Func<double> seconds) => _seconds = seconds;
 
     private double _lastSeconds;
     private bool _running;
@@ -60,6 +66,7 @@ internal sealed class IslandSpringEngine : IDisposable
 
     /// <summary>(width, height, cornerRadius, progress 0-1)</summary>
     public event Action<double, double, double>? Updated;
+    public event Action<string>? SizeTransition;
 
     public double Width => _width.Value;
     public double Height => _height.Value;
@@ -69,7 +76,16 @@ internal sealed class IslandSpringEngine : IDisposable
     /// <summary>高度方向的当前速度（负值表示正在收缩），用于判断"收起途中被移回"。</summary>
     public double HeightVelocity => _height.Velocity;
 
-    public bool IsSettled => _width.IsSettled && _height.IsSettled && _radius.IsSettled && _nudge.IsSettled;
+    public bool IsSizeSettled => !_sizeTimed && _width.IsSettled && _height.IsSettled && _radius.IsSettled;
+    public bool IsSettled => IsSizeSettled && _nudge.IsSettled;
+    public string SizeMode { get; private set; } = "spring";
+    public double TargetWidth => _width.Target;
+    public double TargetHeight => _height.Target;
+    public double TargetRadius => _radius.Target;
+    public double TargetUpdatedSeconds { get; private set; }
+    public double SizeDurationMs { get; private set; }
+    public bool IsSizeTimed => _sizeTimed;
+    internal bool IsRunning => _running;
 
     /// <summary>
     /// 动画风格预设（Smooth / Bouncy / Snappy）对刚度与阻尼的乘数。
@@ -96,6 +112,10 @@ internal sealed class IslandSpringEngine : IDisposable
     /// <summary>设置目标尺寸。repeat 为 true 表示回到同一形态时稍微"弹"一下。</summary>
     public void SetTarget(double width, double height, double radius)
     {
+        CancelTimed();
+        SizeMode = "spring";
+        TargetUpdatedSeconds = _seconds();
+        SizeDurationMs = 0;
         // 扩张与收缩用不同的阻尼：展开时略欠阻尼（有轻微 overshoot），
         // 收起时更紧一些，避免整块面板"拖着尾巴"缩回去。
         // 用"旧目标 → 新目标"判断方向，而不是当前值：
@@ -144,11 +164,69 @@ internal sealed class IslandSpringEngine : IDisposable
         Start();
     }
 
+    /// <summary>切页专用：从当前可见尺寸接向最新目标，绝不排队或过冲。</summary>
+    public void SetTargetTimed(double width, double height, double radius, double durationMs,
+        long? targetTimestamp = null)
+    {
+        if (!_primed || durationMs <= 0)
+        {
+            SnapTo(width, height, radius);
+            return;
+        }
+        CancelTimed();
+        _fromWidth = Width;
+        _fromHeight = Height;
+        _fromRadius = Radius;
+        _width.Target = width;
+        _height.Target = height;
+        _radius.Target = radius;
+        _width.Velocity = _height.Velocity = _radius.Velocity = 0;
+        SizeMode = "timed";
+        TargetUpdatedSeconds = targetTimestamp.HasValue
+            ? (double)targetTimestamp.Value / Stopwatch.Frequency : _seconds();
+        SizeDurationMs = durationMs;
+        _sizeTimed = true;
+        SizeTransition?.Invoke("size_timed_start");
+        Start();
+    }
+
+    public void SnapTo(double width, double height, double radius)
+    {
+        CancelTimed();
+        _width.Value = _width.Target = width;
+        _height.Value = _height.Target = height;
+        _radius.Value = _radius.Target = radius;
+        _width.Velocity = _height.Velocity = _radius.Velocity = 0;
+        _nudge.Value = _nudge.Velocity = _nudge.Target = 0;
+        _primed = true;
+        SizeMode = "instant";
+        TargetUpdatedSeconds = _seconds();
+        SizeDurationMs = 0;
+        Stop();
+        Updated?.Invoke(width, height, radius);
+        SizeTransition?.Invoke("size_snap");
+    }
+
+    private void CancelTimed()
+    {
+        if (!_sizeTimed) return;
+        _sizeTimed = false;
+        SizeTransition?.Invoke("size_timed_cancel");
+    }
+
     /// <summary>给一点初始速度，做出"被顶开"的手感。</summary>
     public void Kick(double velocity)
     {
-        _width.Velocity += velocity;
-        _height.Velocity += velocity * 0.35;
+        if (SizeMode == "spring")
+        {
+            _width.Velocity += velocity;
+            _height.Velocity += velocity * 0.35;
+        }
+        else
+        {
+            // HUD 的物理反馈走独立轻弹，不能让切页尺寸重新产生尾巴。
+            _nudge.Velocity += velocity * 0.35;
+        }
         Start();
     }
 
@@ -169,18 +247,45 @@ internal sealed class IslandSpringEngine : IDisposable
         }
 
         _running = true;
-        _lastSeconds = _clock.Elapsed.TotalSeconds;
+        _lastSeconds = _seconds();
         CompositionTarget.Rendering += OnRendering;
     }
 
-    private void OnRendering(object? sender, EventArgs e)
+    private void OnRendering(object? sender, EventArgs e) => Tick();
+
+    internal void Tick()
     {
-        double now = _clock.Elapsed.TotalSeconds;
+        if (!_running) return;
+        double now = _seconds();
         double dt = now - _lastSeconds;
         _lastSeconds = now;
 
         // 掉帧时钳制步长，避免弹簧数值爆炸
-        dt = Math.Clamp(dt, 0.001, 0.05);
+        dt = Math.Clamp(dt, 0, 0.05);
+
+        bool finishedTimed = false;
+        if (_sizeTimed)
+        {
+            // 定时通道使用真实单调时间，不受弹簧掉帧步长钳制影响。
+            double t = Math.Clamp((now - TargetUpdatedSeconds) * 1000 / SizeDurationMs, 0, 1);
+            double eased = t * t * (3 - 2 * t);
+            double speed = 6 * t * (1 - t) * 1000 / SizeDurationMs;
+            _width.Value = _fromWidth + (_width.Target - _fromWidth) * eased;
+            _height.Value = _fromHeight + (_height.Target - _fromHeight) * eased;
+            _radius.Value = _fromRadius + (_radius.Target - _fromRadius) * eased;
+            _width.Velocity = (_width.Target - _fromWidth) * speed;
+            _height.Velocity = (_height.Target - _fromHeight) * speed;
+            _radius.Velocity = (_radius.Target - _fromRadius) * speed;
+            if (t >= 1)
+            {
+                _width.Value = _width.Target;
+                _height.Value = _height.Target;
+                _radius.Value = _radius.Target;
+                _width.Velocity = _height.Velocity = _radius.Velocity = 0;
+                _sizeTimed = false;
+                finishedTimed = true;
+            }
+        }
 
         // 固定子步长积分，保证不同刷新率下表现一致。
         // 1ms 子步：4ms 时刚度 450 的档位在 dt 抖动下会有可见的数值噪声，
@@ -189,13 +294,17 @@ internal sealed class IslandSpringEngine : IDisposable
         double sub = dt / steps;
         for (int i = 0; i < steps; i++)
         {
-            _width.Advance(sub);
-            _height.Advance(sub);
-            _radius.Advance(sub);
+            if (SizeMode == "spring")
+            {
+                _width.Advance(sub);
+                _height.Advance(sub);
+                _radius.Advance(sub);
+            }
             _nudge.Advance(sub);
         }
 
         Updated?.Invoke(_width.Value, _height.Value, _radius.Value);
+        if (finishedTimed) SizeTransition?.Invoke("size_timed_finish");
 
         if (IsSettled)
         {
@@ -221,5 +330,9 @@ internal sealed class IslandSpringEngine : IDisposable
         CompositionTarget.Rendering -= OnRendering;
     }
 
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        CancelTimed();
+        Stop();
+    }
 }

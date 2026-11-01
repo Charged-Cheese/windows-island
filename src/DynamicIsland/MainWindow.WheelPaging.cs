@@ -1,11 +1,13 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
+using DynamicIsland.ViewModels;
 
 namespace DynamicIsland;
 
 public partial class MainWindow
 {
+    private bool _clientAreaAnimation = SystemParameters.ClientAreaAnimation;
     // Unit-mass spring: k=700, c=52, zeta≈0.983. Exact integration avoids frame-rate drift.
     private const double WheelStiffness = 700;
     private const double WheelHalfDamping = 26;
@@ -42,11 +44,12 @@ public partial class MainWindow
         _tabAnimating = true;
         _lastTabTransition = DateTime.UtcNow;
         SyncTabTarget(target);
+        TargetPageSize(target, now);
         if (!continuing) BeginTabTransitionVisual();
         RecordPagingSample(continuing ? "wheel_retarget" : "wheel_start");
         if (takingOverClick) RecordPagingSample("handoff_after");
 
-        if (!SystemParameters.ClientAreaAnimation)
+        if (!_clientAreaAnimation)
         {
             FinishWheelGlide();
             return;
@@ -113,5 +116,38 @@ public partial class MainWindow
             finally { _tabSyncingTarget = false; }
         }
         if (target == 4) _viewModel.SyncNotificationHistory();
+    }
+
+    private void TargetPageSize(int target, long timestamp)
+    {
+        // 已折叠/通知态的后续点击队列不得把窗口重新撑开。
+        if (_state != IslandState.Expanded) return;
+        (double width, double height) = SizeForTab(target);
+        if (_clientAreaAnimation)
+            _spring.SetTargetTimed(width, height, ExpandedRadius, TabTransitionMs, timestamp);
+        else
+            _spring.SnapTo(width, height, ExpandedRadius);
+        UpdateIslandHitRect();
+    }
+
+    private void OnSystemMotionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SystemParameters.ClientAreaAnimation)) return;
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(new Action(() => OnSystemMotionChanged(sender, e)));
+            return;
+        }
+        ApplySystemMotionPreference(SystemParameters.ClientAreaAnimation);
+    }
+
+    private void ApplySystemMotionPreference(bool animate)
+    {
+        _clientAreaAnimation = animate;
+        if (!animate)
+        {
+            _spring.SnapTo(_spring.TargetWidth, _spring.TargetHeight, _spring.TargetRadius);
+            if (_tabAnimating) OnTabRendering(this, EventArgs.Empty);
+        }
     }
 }

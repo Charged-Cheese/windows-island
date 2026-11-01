@@ -169,7 +169,72 @@ python tools/paging_baseline.py --exe src/DynamicIsland/bin/Release/net10.0-wind
 
 ## 后续阶段
 
-第五、六阶段按用户要求延期，不包含在 v1.0.4。完整开发内容、文件入口、接管规则、验收标准与复测命令见 [翻页后续开发计划](paging-future-plan.md)。
+v1.0.4 发布时第五、六阶段按用户要求延期，不包含在该发布包。当前源码第五阶段进展见下文；第六阶段仍待开发。完整开发内容、文件入口、接管规则、验收标准与复测命令见 [翻页后续开发计划](paging-future-plan.md)。
 
 5. 切页尺寸用定时通道收尾，消除余震并处理状态接管。
 6. 透明度、时长与曲线打磨，完成真实设备和逐帧验收。
+
+## 第五阶段：切页尺寸定时通道
+
+状态（2026-11-01）：实现与自动复测完成，尚未发布；桌面逐帧与真实鼠标验收待完成，不把本轮标记为完整体验验收通过。第六阶段未开始。
+
+### 改动
+
+- `IslandSpringEngine.SetTargetTimed` 使用单调时钟，同时插值宽、高、圆角。240ms 内使用单调 smoothstep，到期准确写入目标并清零尺寸速度；不使用弹簧误差阈值冒充尺寸完成。
+- 点击每步和滚轮每个最新目标均从当前实际可见尺寸衔接，复用页面目标的 Stopwatch 时间戳。尺寸通道不排队；重定向取消旧通道。点击跨五页仍保留五步内容动画，240ms 约束针对每一步的目标更新时间。
+- 移除 ActiveTab 通知中抢先设置最终页尺寸的路径，改在 StartTabStep/StartWheelGlide 中设置实际执行目标。折叠/展开/通知由状态机接回尺寸弹簧；旧点击队列在非展开态不得重新撑开窗口。
+- 首次目标直接落位。轻弹与尺寸独立收尾，尺寸完成后仍等待轻弹结束才退订 Rendering；切页模式下 HUD Kick 走轻弹，避免尺寸再次产生余震。
+- 系统关闭客户区动画时，内容与尺寸直接落位；运行中关闭也取消当前定时尺寸并落位。系统偏好监听在窗口关闭时注销。
+- CSV 保留原列，追加尺寸模式、目标宽高/圆角、目标更新时间、通道时长、定时活动标记、当前圆角和纯尺寸稳定状态；记录 `size_timed_start/finish/cancel`、`size_snap`。旧 `size_settled` 仍包括轻弹，新的 `size_only_settled` 排除轻弹。页面、尺寸完成时间分别统计。
+- 页面滚轮 k/c、点击 240ms/Quint、透明度指数与阈值均保持本轮前的值。未重写渲染器、阴影结构或升级依赖。
+
+### 自动复测
+
+```powershell
+dotnet build src/DynamicIsland/DynamicIsland.csproj -c Release
+dotnet run --project tools/SizeAnimation.SelfTest -c Release -- artifacts/size-stage5-selftest-final
+dotnet run --project tools/PagingLayout.SelfTest -c Release -- artifacts/paging-layout-stage5
+dotnet run --project tools/LauncherLayout.SelfTest -c Release
+dotnet run --project tools/HistoryScrollbars.SelfTest -c Release
+python tools/paging_baseline.py --exe src/DynamicIsland/bin/Release/net10.0-windows10.0.19041.0/win-x64/DynamicIsland.exe --out artifacts/paging-stage5 --repeats 3 --check-glide --check-size
+```
+
+这些目录是本次已生成的原始结果；复测应换新目录，避免覆盖旧记录。
+
+- Release 构建通过；保留原有 SQLite 原生依赖 NU1903 提示。
+- 新增尺寸自检 27 组通过：30/60/120/144/240Hz 五档模拟回调 × 四种风格，每组检查三种尺寸行程、单调性、准确落位和退订；另覆盖首次初始化、定时↔弹簧、定时反向、掉帧、轻弹/HUD、降低动效，以及真实编译 MainWindow 的离屏状态接管、历史滑块拖动/松开、右键菜单开关和点击逐页目标。
+- 五档 DPI、35 组尺寸变化中六页尺寸与锚点保持固定；30 条通知内容子树在每轮 160 次变形中 SizeChanged 为 0，末尾可达。图标坞 25 组、历史滚动条 16 项检查通过。
+- 合成 IPC 在实际 WPF 进程中运行 25 场景 × 3 轮，最终 75 场景的目标页、队列/速度接管、尺寸事件配对、准确落位和完成期限断言通过。定时尺寸完成事件共 69 个，耗时最小 240.04ms、中位数 249.54ms、最大 270.01ms；均在 240ms 加该场景一个实际回调间隔内结束。
+- 两份原始轨迹中的 8,286 个定时终态帧采样，宽、高、圆角与目标差均为 0。中途状态机接管的尺寸取消按取消事件计，不伪记为完成。
+
+三轮中位数，均从最后一次合成输入起算；页面位置口径仍为 34 DIP 位移的 0.5 DIP 尾延迟：
+
+| 场景 | 页面位置尾延迟 | 页面逻辑结束 | 尺寸完成事件尾延迟 |
+|---|---:|---:|---:|
+| 单格 | 237.0ms | 287.1ms | 254.3ms |
+| 三格分事件 | 251.1ms | 290.3ms | 251.3ms |
+| 单事件三格 | 271.5ms | 319.6ms | 254.8ms |
+| 五格连滚 | 269.2ms | 303.3ms | 251.4ms |
+| 动态→日历 | 230.1ms | 279.8ms | 249.1ms |
+| 日历→媒体（一次五格） | 304.0ms | 338.6ms | 252.6ms |
+
+单格页面位置仍未达到 200ms 目标；这属于第六阶段，不能把尺寸收尾改善说成页面节奏已经达标。
+
+### 原始数据与前置状态异常
+
+原始记录为 `artifacts/paging-stage5/`、`artifacts/paging-stage5-partial-reverse-followup/`；合并验证结果为前者的 `validated-summary.json`，包含每项来源和替换原因。两次测量程序集 SHA256 均为 `2b1b73685ecd3a6a0b79fe72bde4fdf32729245ab11854558d3e9b68984974eb`。
+
+首轮的 `partial_reverse_0` 在输入前已处于 Collapsed，滚轮未进入展开态翻页路径，导致整轮命令返回失败；不能把这项视为通过。保留原始失败记录后，使用相同程序集补测该场景三轮：
+
+```powershell
+python tools/paging_baseline.py --exe src/DynamicIsland/bin/Release/net10.0-windows10.0.19041.0/win-x64/DynamicIsland.exe --out artifacts/paging-stage5-partial-reverse-followup --repeats 3 --check-glide --check-size --cases partial_reverse
+```
+
+补测三轮通过；合并报告使用原始数据其余 72 项及补测 3 项，不混用同场景的轮次。脚本增加初始展开态断言，后续遇到同类前置状态异常会明确报错，而非悄悄改变最终页预期或放宽阈值。尺寸测量与页面回调测量可信；CPU 保留原始值，首轮期间还运行了离屏自检，不据此做性能归因。
+
+### 验收边界
+
+- 已查看离屏静态日历和动态→日历中间态渲染，终态文字完整，中间态受岛体边界裁剪。这是布局/指定尺寸采样，不等于桌面动画录屏。
+- 本次 computer-use 的 list_apps/list_windows 没有返回灵动岛可操作窗口；实际进程仍通过诊断 IPC 与 Rendering 回调测量。因此没有完成真实鼠标、桌面逐帧、实际不同刷新率设备、HUD 实际位置和菜单命中区的完整目视验收。
+- 模式接管保证尺寸位置连续；定时重定向采用零起步速度，尚未通过真实设备确认是否可见速度折点。若后续目视出现折点，再评估保速且不过冲的插值。
+- 第五阶段桌面验收完成前，不把第六阶段写成已启动或完成，不修改 v1.0.4 历史发布结论。

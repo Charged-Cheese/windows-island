@@ -117,13 +117,21 @@ GLIDE_CASES = {
     "click_only": (0, ["tab:5", 0], 0),
     "click_edge_takeover": (1, ["tab:5", -12000], 0.0465),
 }
-ALL_CASES = {**CASES, **GLIDE_CASES}
+SIZE_CASES = {
+    "calendar_media": (5, [600], 0),
+    "size_retarget": (4, [-120, 120, -120], 0.0465),
+    "size_collapse": (4, [-120, "collapse", 0], 0.0465),
+    "size_collapse_expand": (4, [-120, "collapse", "expand", 0], 0.0465),
+}
+ALL_CASES = {**CASES, **GLIDE_CASES, **SIZE_CASES}
 GLIDE_DESTINATIONS = {name: value[:2] for name, value in INPUT_EXPECTATIONS.items()}
 GLIDE_DESTINATIONS.update({
     # Both wheel targets are accepted immediately; changing state does not replay queued steps.
     "pending_reset": (3, 0), "five_ticks": (5, 0), "clamped_burst": (5, 0),
     "rapid_reverse": (2, 0), "click_then_wheel": (3, 0), "wheel_then_click": (0, 0),
     "click_only": (5, 0), "click_edge_takeover": (5, 0),
+    "calendar_media": (0, 0), "size_retarget": (5, 0),
+    "size_collapse": (5, 0), "size_collapse_expand": (5, 0),
 })
 
 
@@ -149,12 +157,21 @@ def summarize(trace, measurements):
         finishes = [float(r["time_ms"]) for r in sample if r["event"] in ("step_finish", "wheel_finish")]
         unsettled = [float(r["time_ms"]) for r in frames if r["size_settled"] == "False"]
         intervals = [float(b["time_ms"]) - float(a["time_ms"]) for a, b in zip(frames, frames[1:])]
+        size_events = [r for r in sample if r["event"].startswith("size_timed_")]
+        size_finishes = [float(r["time_ms"]) for r in size_events if r["event"] == "size_timed_finish"]
         summaries.append({
             **measurement,
+            "initial_state": int(sample[0]["state"]),
             "input_span_ms": round(last_input - float(wheels[0]["time_ms"]), 2),
             "page_tail_0_5dip_ms": round(max(0, last_motion - last_input), 2),
             "logical_tail_ms": round(max(0, max(finishes, default=last_input) - last_input), 2),
             "size_tail_ms": round(max(0, max(unsettled, default=last_input) - last_input), 2),
+            "size_completion_tail_ms": round(max(0, max(size_finishes) - last_input), 2) if size_finishes else None,
+            "size_events": [{key: r[key] for key in ("time_ms", "event", "width", "height", "radius",
+                            "target_width", "target_height", "target_radius", "size_target_time_ms", "size_duration_ms")}
+                            for r in size_events],
+            "final_size_mode": frames[-1].get("size_mode"),
+            "final_state": int(frames[-1]["state"]),
             "final_page_position": final_position,
             "final_remainder": int(frames[-1]["remainder"]),
             "initial_remainder": int(wheels[0]["remainder"]),
@@ -186,11 +203,16 @@ def main():
     parser.add_argument("--repeats", type=int, default=3, choices=range(1, 11))
     parser.add_argument("--check-input", action="store_true", help="Assert stage-2 input behavior")
     parser.add_argument("--check-glide", action="store_true", help="Assert stage-3 target tracking and handoff behavior")
+    parser.add_argument("--check-size", action="store_true", help="Assert stage-5 timed size deadlines/completion and state takeover (requires --check-glide)")
     parser.add_argument("--cases", nargs="+", choices=ALL_CASES, help="Run only selected scenarios")
     args = parser.parse_args()
     if args.check_input and args.check_glide:
         parser.error("Choose --check-input or --check-glide; the scheduling semantics differ")
-    cases = ALL_CASES if args.check_glide else CASES
+    if args.check_size and not args.check_glide:
+        parser.error("--check-size requires --check-glide")
+    cases = {**CASES, **GLIDE_CASES} if args.check_glide else CASES
+    if args.check_size:
+        cases = {**cases, **SIZE_CASES}
     if args.cases:
         cases = {name: ALL_CASES[name] for name in args.cases}
     exe, out = args.exe.resolve(), args.out.resolve()
@@ -315,11 +337,48 @@ def main():
     if args.check_glide:
         validate_glide_results(summary)
         print(f"Glide assertions passed: {len(summary)} cases", flush=True)
+    if args.check_size:
+        validate_size_results(summary)
+        print(f"Timed-size assertions passed: {len(summary)} cases", flush=True)
+
+
+def validate_size_results(summary):
+    for result in summary:
+        active = None
+        for event in result["size_events"]:
+            kind = event["event"]
+            if kind == "size_timed_start":
+                if active is not None:
+                    raise AssertionError(f"{result['tag']}: timed target overwritten without cancellation")
+                active = event
+                continue
+            if active is None:
+                raise AssertionError(f"{result['tag']}: terminal size event without start")
+            if event["size_target_time_ms"] != active["size_target_time_ms"]:
+                raise AssertionError(f"{result['tag']}: stale size target completed")
+            if kind == "size_timed_finish":
+                elapsed = float(event["time_ms"]) - float(active["size_target_time_ms"])
+                duration = float(active["size_duration_ms"])
+                if not duration - 0.1 <= elapsed <= duration + result["max_callback_interval_ms"] + 1:
+                    raise AssertionError(f"{result['tag']}: size deadline {elapsed:.2f}ms, expected {duration}ms + one callback")
+                for actual, target in (("width", "target_width"), ("height", "target_height"), ("radius", "target_radius")):
+                    if float(event[actual]) != float(event[target]):
+                        raise AssertionError(f"{result['tag']}: size completion did not land exactly: {actual}")
+            active = None
+        if active is not None:
+            raise AssertionError(f"{result['tag']}: timed size never finished/cancelled")
+        if result["case"] in ("three", "multi_delta", "five_ticks", "clamped_burst"):
+            if result["size_completion_tail_ms"] is None or result["size_completion_tail_ms"] >= 300:
+                raise AssertionError(f"{result['tag']}: size still serialized/late")
+        if result["case"] == "size_collapse" and (result["final_state"] != 0 or result["final_size_mode"] != "spring"):
+            raise AssertionError(f"{result['tag']}: old page size reopened collapsed window")
 
 
 def validate_glide_results(summary):
     for result in summary:
         tag, name = result["tag"], result["case"]
+        if result.get("initial_state", 1) != 1:
+            raise AssertionError(f"{tag}: fixture was not expanded before input; preserve this run and repeat the affected case")
         if result["truncated"]:
             raise AssertionError(f"{tag}: observation ended before settling")
         actual = (result["final_page_position"], result["final_remainder"])
