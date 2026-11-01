@@ -20,3 +20,7 @@ packages/
 *.log
 Thumbs.db
 desktop.ini
+
+# ── Python 缓存（工具脚本运行后产生） ─────────
+__pycache__/
+*.pyc
