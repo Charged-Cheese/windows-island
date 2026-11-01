@@ -478,6 +478,7 @@ public partial class MainWindow : Window
 
         _ = InitializeServicesAsync();
         FrameProbe.StartIfRequested();
+        StartPagingProbeIfRequested();
     }
 
     /// <summary>隐私点的呼吸感，避免静态小圆点看起来像渲染残留。</summary>
@@ -703,6 +704,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (HandlePagingProbeCommand(command)) return;
+
         Core.Services.LogService.Info("收到命令：" + command);
 
         string[] parts = command.Split('|');
@@ -800,6 +803,7 @@ public partial class MainWindow : Window
 
         _state = state;
         _viewModel.State = state;
+        RecordPagingSample("state");
 
         (double width, double height, double radius) = state switch
         {
@@ -1354,6 +1358,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void HandleWheel(int delta)
     {
+        RecordPagingSample("wheel", delta);
         // 展开态滚轮切页（与右侧分页点同一套页面），折叠态仍调音量。
         if (_state == IslandState.Expanded)
         {
@@ -2346,6 +2351,7 @@ public partial class MainWindow : Window
         }
 
         _tabAnimating = true;
+        RecordPagingSample("step_start");
         CompositionTarget.Rendering -= OnTabRendering;
         CompositionTarget.Rendering += OnTabRendering;
         ApplyTabTransition();
@@ -2371,6 +2377,7 @@ public partial class MainWindow : Window
     private void FinishTabStep()
     {
         _tabAnimating = false;
+        RecordPagingSample("step_finish");
 
         // 动画期间用户又滚了：立刻接着播，不加任何冷却——这是"快速滚动能连续翻页"的关键。
         if (_wheelPendingSteps != 0)
@@ -2831,6 +2838,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        StopPagingProbe();
         FrameProbe.Stop();
         _notificationTimer.Stop();
         _autoCollapseTimer.Stop();
