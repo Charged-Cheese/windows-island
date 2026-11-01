@@ -2,7 +2,7 @@
 
 Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面板，聚合通知、媒体、歌词、天气、硬件与快捷启动。
 
-[更新说明](CHANGELOG.md)
+[更新说明](CHANGELOG.md) · [v1.0.4 发布说明](docs/releases/v1.0.4.md) · [后续开发计划（第五、六阶段）](docs/paging-future-plan.md)
 
 ![展开态](docs/shots/desktop-expanded-v2.png)
 
@@ -13,7 +13,7 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 | **消息通知** | 读取 Windows 通知（QQ / 邮件 / 系统等），新消息自动弹出通知卡约 4 秒；通知卡和列表显示来源应用图标（取不到时用首字彩色占位）；点击通知可唤起来源应用；通知页支持一键清空 |
 | **音乐控制** | 通过系统 SMTC 接管所有播放器（网易云 / QQ 音乐 / Spotify / 浏览器等）：播放暂停、上一首/下一首、进度显示；同时开着多个播放器时，媒体条出现「⇄」按钮切换接管来源 |
 | **音量** | 展开态媒体条右侧有音量条：拖动调音量、单击静音，并弹出岛下方的音量浮层；折叠态滚轮同样可调（步进可在设置里改，默认 4%） |
-| **歌词** | LRCLIB 自动匹配（同步歌词 / 纯文本歌词）：标题与艺人自动清洗，多级查询 + 时长/艺人评分；本地缓存，冷门歌也尽量回退到纯文本。新增独立歌词页：三行大字 + karaoke 逐字擦除 |
+| **歌词** | LRCLIB 自动匹配（同步歌词 / 纯文本歌词）：标题与艺人自动清洗，多级查询 + 时长/艺人评分；本地缓存，冷门歌也尽量回退到纯文本。媒体页内显示歌词与 karaoke 逐字擦除，无歌词时显示频谱 |
 | **日期天气** | 顶部实时时钟；Open-Meteo 天气（温度 / 体感 / 湿度 / 风速 / 三日预报）；城市可在设置里选预设或搜索任意城市 |
 | **硬件监视** | CPU、内存、GPU、磁盘占用与上下行网速，2 秒刷新，超 75% 转橙、超 90% 转红；每项带 28 点迷你趋势曲线 |
 | **图标坞** | 把桌面快捷方式拖到岛上即可暂存，点击图标直接启动；拖拽图标可排序；右键图标可打开文件位置或移除 |
@@ -28,7 +28,7 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 
 ## 使用
 
-直接运行 `DynamicIsland.exe`（单文件，需 .NET 10 桌面运行时）。
+从 [GitHub Releases](https://github.com/Charged-Cheese/windows-island/releases/latest) 下载 Windows x64 ZIP，完整解压后运行 `DynamicIsland.exe`。发布包内置 .NET 10 桌面运行时；升级前先退出旧版本，用户配置会保留。
 
 > **首次运行**可能出现「打开文件 - 安全警告」（未签名程序的系统提示），点「运行」即可。
 
@@ -36,8 +36,8 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 - **鼠标移开**：立即开始收起（约 0.2 秒动画）；如果收到一半又把鼠标移回来，
   会从当前尺寸和速度直接反向，不会跳变或重新播放淡入
 - **右键岛体**：菜单（日历、设置…、开机自启、专注 25/50/5、主题切换、刷新天气、清空图标坞、打开数据目录、打开日志、退出）
-- **滚轮在展开的岛上**：切换 8 个页面（媒体 / 天气 / 硬件 / 图标坞 / 通知 / 歌词 / 剪贴板 / 日历）；
-  相邻页带果冻回弹，跨多页（如日历→媒体）直接落位并淡入，不会一路闪过中间页
+- **滚轮在展开的岛上**：切换 6 个页面（媒体与歌词 / 天气 / 硬件 / 图标坞 / 动态 / 日历）；动态页内切换通知和剪贴板。
+  连滚更新目标并连续滑动，不逐页等待；点击右侧分页点仍逐页播放。
 - **查看通知 / 剪贴板历史**：列表溢出时右侧显示细滚动条，拖动滑块或点击滑轨上下查看；滚轮仍用于切页。
   拖动滑块时鼠标移出岛体不会中断，松开后恢复悬停收起规则。
 - **打开日历**：点胶囊右侧的日历图标，或展开后点媒体条右端的日历按钮，或右键 →「日历」；
@@ -95,12 +95,11 @@ dotnet build .\src\DynamicIsland\DynamicIsland.csproj -c Debug
 dotnet run --project .\src\DynamicIsland.SelfTest\DynamicIsland.SelfTest.csproj -- --launcher-test
 ```
 
-发布单文件（本机 SDK 在 `D:\dotnet-sdk`）：
+发布内置运行时的 Windows x64 单文件（需要 .NET 10 SDK）：
 
 ```powershell
-$env:DOTNET_ROOT="D:/dotnet-sdk"
 dotnet publish .\src\DynamicIsland\DynamicIsland.csproj -c Release -r win-x64 `
-  --self-contained false -p:PublishSingleFile=true -o .\publish-out
+  --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o .\publish-out
 ```
 
 专项测试使用独立临时目录和自行启动后立即退出的测试进程，不修改正式图标坞配置，不执行音量、通知、媒体和天气自检。
@@ -117,6 +116,8 @@ dotnet run --project .\tools\HistoryScrollbars.SelfTest\HistoryScrollbars.SelfTe
 dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csproj
 ```
 
+翻页调度、固定页面布局与后续工作的复测入口见 [阶段记录](docs/paging-repair-progress.md)。尺寸同步和透明度/节奏打磨尚未开发，范围和验收标准见 [后续计划](docs/paging-future-plan.md)。
+
 ## 数据目录
 
 | 内容 | 路径 |
@@ -132,21 +133,18 @@ dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csp
 - **自研弹簧动画引擎**：`CompositionTarget.Rendering` 逐帧积分（宽 / 高 / 圆角 / 纵向轻弹四通道），
   可随时打断并保留速度；展开用略欠阻尼、收起用更紧的阻尼，形状变化带轻微 overshoot
 - **展开/收起交叉淡入**：按岛体高度做 smoothstep 渐变，展开内容同时做 7px 渐进归位，变形过程不硬切
-- **页面切换**：一个连续的 tab 位置驱动 8 个页面**水平滑动** / 缩放 / 淡入——下一页从右进入、
-  上一页向左退出，方向与滚轮一致；切页弹簧改为接近临界阻尼（主要位移约 220ms），
-  页面静止时的透明度与缩放保持不变；分页点跟随位置并随速度拉伸；快速连滚时保留动量继续追赶
+- **页面切换**：连续 tab 位置驱动 6 页垂直滑动 / 缩放 / 淡入。滚轮使用 k=700、c=52 的近临界阻尼弹簧追最新目标并继承速度；点击每页 240ms。页面按各自尺寸固定并顶部锚定，岛体只裁剪内容。
 - **主题系统**：曜石 / 石墨 / 瓷白三套调色板，颜色统一走 `DynamicResource`，切换即时生效并持久化
 - **磨砂玻璃**：`AllowsTransparency` 的分层窗口拿不到 DWM Acrylic/Mica，改用「半透明底色（91%）+
   顶部柔光渐变 + 1px 边缘高光 + 3×3 噪点平铺 + 投影」做降级，文字对比度不受影响
 - **农历**：.NET 内置 `ChineseLunisolarCalendar`（1901–2100），不联网、不伪造，越界自动隐藏该行
 - **封面 morph**：折叠 24px 正圆 ↔ 展开 46px 圆角方形，由岛体高度连续插值尺寸与位置
   （圆角固定 12，尺寸变大时形状自然从圆过渡到圆角方）；
-  折叠/展开两套模板只保留布局占位，真正的封面由顶层 morph 层绘制，不会出现两个封面叠影
+  开合途中由顶层 morph 层绘制，展开后交给媒体页内的封面随整页滑动
 - **封面取色**：解码 24px 缩略图，按鲜艳度加权平均、跳过近黑近白与灰像素，
   再按当前主题明暗钳制饱和度/亮度；换歌与换主题时以 300ms 半衰期指数过渡，
   用 `DispatcherTimer` 驱动（渲染回调在窗口空闲时会停）
-- **动画风格预设**：标准 / 顺滑 / 弹跳 / 干脆四档，对刚度与阻尼做不同乘数，
-  同时作用于岛体尺寸弹簧与切页弹簧，设置面板切换即时生效
+- **动画风格预设**：标准 / 顺滑 / 弹跳 / 干脆四档，调整岛体尺寸弹簧；滚轮追目标与点击计时使用独立参数，设置面板切换即时生效
 - **GSMTC**（WinRT）接管媒体（支持多会话切换），**Core Audio** 控音量
 - **系统感知**：隐私点读 `CapabilityAccessManager\ConsentStore`（校验 start/stop 时间戳）；
   Caps/Num Lock、电源、勿扰走轻量轮询；USB 走 `WM_DEVICECHANGE`；
@@ -191,8 +189,9 @@ dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csp
 - 勿扰状态通过注册表 `NOC_GLOBAL_SETTING_TOASTS_ENABLED` 近似检测，个别系统版本可能读不到
 - 全屏检测只认「覆盖屏幕且非最大化」的窗口；某些全屏壳/游戏可能被当作普通窗口
 - 隐私点依赖 Windows 隐私记录，个别应用不写记录时可能不亮
-- 需 .NET 10 桌面运行时（`Microsoft.WindowsDesktop.App 10.x`）
-- 单文件仅框架依赖，未做代码签名
+- 发布 ZIP 内置 .NET 10 桌面运行时；源码直接构建的框架依赖版本仍需安装运行时
+- 未做代码签名
+- v1.0.4 尚未完成尺寸动画同步、透明度与单格节奏打磨；详细开发内容与验收标准见 [后续计划](docs/paging-future-plan.md)
 
 ## 许可证
 

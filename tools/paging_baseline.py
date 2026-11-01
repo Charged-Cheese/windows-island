@@ -280,9 +280,11 @@ def main():
             process.wait(timeout=5)
     summary = summarize(trace, measurements)
     assembly = exe.with_suffix(".dll")
+    binary = assembly if assembly.is_file() else exe
     report = {"method": "synthetic diagnostic IPC; callback samples, not presented pixels",
               "platform": platform.platform(), "pid": process.pid,
-              "assembly_sha256": hashlib.sha256(assembly.read_bytes()).hexdigest(),
+              "assembly_sha256": hashlib.sha256(assembly.read_bytes()).hexdigest() if assembly.is_file() else None,
+              "measured_binary": binary.name, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
               "settings": settings, "repeats": args.repeats, "cases": summary,
               "limits": [
                   "Page tail uses 0.5 DIP of the 34-DIP translation, excluding opacity/scale/shadow.",
