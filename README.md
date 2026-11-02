@@ -4,7 +4,9 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 
 [更新说明](CHANGELOG.md) · [v1.0.4 发布说明](docs/releases/v1.0.4.md) · [后续开发计划（第五、六阶段）](docs/paging-future-plan.md)
 
-源码进度（尚未发布）：第五阶段尺寸通道、第六阶段透明度与节奏调整已实现并完成自动复测；桌面逐帧、真实鼠标与实际不同刷新率设备验收待完成，详见 [第六阶段报告](docs/paging-stage6-report.md)。
+**分发方式更新（2026-11-01）：从本次更新起，仅提供源码，不再提供新的预编译程序、安装包或构建 ZIP。历史发布包对应历史源码，不代表当前最新版本。**
+
+源码进度：第五阶段尺寸通道、第六阶段透明度与节奏调整已实现并完成此前的自动复测；桌面逐帧、真实鼠标与实际不同刷新率设备验收待完成，详见 [第六阶段报告](docs/paging-stage6-report.md)。
 
 ![展开态](docs/shots/desktop-expanded-v2.png)
 
@@ -30,7 +32,11 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 
 ## 使用
 
-从 [GitHub Releases](https://github.com/Charged-Cheese/windows-island/releases/latest) 下载 Windows x64 ZIP，完整解压后运行 `DynamicIsland.exe`。发布包内置 .NET 10 桌面运行时；升级前先退出旧版本，用户配置会保留。
+项目唯一启动入口是根目录的 `启动灵动岛.cmd`。该脚本当前运行本地已有的 `src\DynamicIsland\bin\Release\net10.0-windows10.0.19041.0\win-x64\DynamicIsland.exe`；启动前先退出旧实例，用户配置会保留。
+
+源码仓库不包含构建产物。缺少本地 Release 程序时，启动脚本会提示并退出，不会自动构建。以后每次更新版本都须同步修改该脚本，确保它指向更新后的版本；未经用户明确要求，不得执行构建。完整规定见 [开发规定](开发规定.md)。
+
+[GitHub Releases](https://github.com/Charged-Cheese/windows-island/releases) 中已有的下载仅供历史版本使用；本次及后续更新不提供新的构建版本。
 
 > **首次运行**可能出现「打开文件 - 安全警告」（未签名程序的系统提示），点「运行」即可。
 
@@ -90,14 +96,14 @@ expand | collapse | toggle | tab:0..5 | notify:标题|正文 | launcher:路径 |
 当前有效的快捷方式。点击无法启动时会提示原因及日志路径；日志中的“已提交启动请求”
 表示 Windows 已接受调用，不表示应用窗口一定已经出现。
 
-需要重新构建或运行启动器专项测试时，在项目根目录执行（需要 .NET 10 SDK）：
+以下命令仅供用户明确要求构建或专项测试时手工使用，启动入口不会执行；不代表项目继续提供构建版本（需要 .NET 10 SDK）：
 
 ```powershell
-dotnet build .\src\DynamicIsland\DynamicIsland.csproj -c Debug
+dotnet build .\src\DynamicIsland\DynamicIsland.csproj -c Release
 dotnet run --project .\src\DynamicIsland.SelfTest\DynamicIsland.SelfTest.csproj -- --launcher-test
 ```
 
-发布内置运行时的 Windows x64 单文件（需要 .NET 10 SDK）：
+仅在用户明确要求时手工生成内置运行时的 Windows x64 单文件（需要 .NET 10 SDK，不作为例行分发）：
 
 ```powershell
 dotnet publish .\src\DynamicIsland\DynamicIsland.csproj -c Release -r win-x64 `
