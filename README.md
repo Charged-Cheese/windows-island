@@ -4,7 +4,7 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 
 [更新说明](CHANGELOG.md) · [v1.0.4 发布说明](docs/releases/v1.0.4.md) · [后续开发计划（第五、六阶段）](docs/paging-future-plan.md)
 
-**分发方式更新（2026-11-01）：从本次更新起，仅提供源码，不再提供新的预编译程序、安装包或构建 ZIP。历史发布包对应历史源码，不代表当前最新版本。**
+**最后构建版（2026-11-02）：[v1.0.4](https://github.com/Charged-Cheese/windows-island/releases/tag/v1.0.4) 使用已经完成的现有 Release 文件打包发布，未重新构建。此后仅提供源码，不再提供新的预编译程序、安装包或构建 ZIP。**
 
 源码进度：第五阶段尺寸通道、第六阶段透明度与节奏调整已实现并完成此前的自动复测；桌面逐帧、真实鼠标与实际不同刷新率设备验收待完成，详见 [第六阶段报告](docs/paging-stage6-report.md)。
 
@@ -36,7 +36,7 @@ Windows 桌面顶部的灵动岛（Dynamic Island）：常驻胶囊 + 展开面�
 
 源码仓库不包含构建产物。缺少本地 Release 程序时，启动脚本会提示并退出，不会自动构建。以后每次更新版本都须同步修改该脚本，确保它指向更新后的版本；未经用户明确要求，不得执行构建。完整规定见 [开发规定](开发规定.md)。
 
-[GitHub Releases](https://github.com/Charged-Cheese/windows-island/releases) 中已有的下载仅供历史版本使用；本次及后续更新不提供新的构建版本。
+最后一个构建包可从 [v1.0.4 发布页](https://github.com/Charged-Cheese/windows-island/releases/tag/v1.0.4) 下载；完整解压后双击包内唯一入口 `启动灵动岛.cmd`。**该包未内置运行时，需要已安装 .NET 10 桌面运行时（x64）**；它与以前内置运行时的发布包不同。后续源码更新不会继续提供构建包。
 
 > **首次运行**可能出现「打开文件 - 安全警告」（未签名程序的系统提示），点「运行」即可。
 
@@ -199,7 +199,7 @@ dotnet run --project .\tools\LauncherLayout.SelfTest\LauncherLayout.SelfTest.csp
 - 隐私点依赖 Windows 隐私记录，个别应用不写记录时可能不亮
 - 发布 ZIP 内置 .NET 10 桌面运行时；源码直接构建的框架依赖版本仍需安装运行时
 - 未做代码签名
-- v1.0.4 发布包未包含第五、六阶段改动；当前源码的尺寸、透明度与节奏调整已实现，桌面完整体验验收待完成；见 [第六阶段报告](docs/paging-stage6-report.md)
+- v1.0.4 最后构建版已包含第五、六阶段的尺寸、透明度与节奏调整；桌面完整体验验收仍待完成，见 [第六阶段报告](docs/paging-stage6-report.md)
 
 ## 许可证
 
